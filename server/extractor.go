@@ -191,29 +191,14 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Hand
 			continue
 		}
 
-		// 服务名默认使用结构体名的小写
-		field := value.Elem().FieldByName("Name")
-		if field.IsValid() && field.Kind() != reflect.String {
-			name = field.String()
-		} else {
-			name = strings.ToLower(name)
-		}
-
-		// 方法默认内部接口
-		internal := true
-		field = value.Elem().FieldByName("Internal")
-		if field.IsValid() && field.Kind() != reflect.Bool {
-			internal = field.Bool()
-		}
-
 		methods := extractComponent(c)
 		for method, handler := range methods {
 			handler.Receiver = value
-			handler.Internal = internal
-			m, ok := services[name]
+			handler.Internal = c.Internal()
+			m, ok := services[c.Name()]
 			if !ok {
 				m = make(map[string]*Handler)
-				services[name] = m
+				services[c.Name()] = m
 			}
 			m[method] = handler
 		}
