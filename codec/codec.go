@@ -4,7 +4,6 @@ package codec
 import (
 	"errors"
 	"io"
-	"strings"
 )
 
 const (
@@ -78,14 +77,4 @@ func NewFrame(b []byte) *Frame {
 	return &Frame{
 		Data: b,
 	}
-}
-
-func MatchCodec(protocol, accept, request, response string) bool {
-	if protocol != "" {
-		protocol = strings.Split(protocol, "+")[1]
-	}
-	if accept != "" {
-		accept = strings.Split(accept, "+")[1]
-	}
-	return protocol == request && accept == response
 }

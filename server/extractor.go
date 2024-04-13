@@ -100,6 +100,10 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 	return args, nil
 }
 
+func (handler *Handler) Match(protocol, accept string) bool {
+	return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
+}
+
 func isHandlerMethod(method reflect.Method) bool {
 	mt := method.Type
 	// Method must be exported.
