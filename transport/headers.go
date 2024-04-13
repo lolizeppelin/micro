@@ -1,4 +1,4 @@
-package headers
+package transport
 
 const (
 	// Topic  call/stream
@@ -21,16 +21,12 @@ const (
 	Protocol = "Micro-Protocol"
 	// Target header.
 	Target = "Micro-Target"
-	// ContentType header.
 	// SpanID header.
 	SpanID = "Micro-Span-ID"
 	// TraceIDKey header.
 	TraceIDKey = "Micro-Trace-ID"
 	// Stream header.
-	Stream     = "Micro-Stream"
-	Query      = "Micro-Query" // url query
-	HeaderNode = "X-Node-Id"   // 限定 node
+	Stream = "Micro-Stream"
+	Query  = "Micro-Query" // url query
 
-	ContentType = "Content-Type"
-	Accept      = "Accept"
 )

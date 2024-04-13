@@ -1,5 +1,4 @@
-// Package metadata is a way of defining message headers
-package metadata
+package transport
 
 import (
 	"context"
@@ -42,8 +41,8 @@ func (md Metadata) Delete(key string) {
 	delete(md, strings.Title(key))
 }
 
-// Copy makes a copy of the metadata.
-func Copy(md Metadata) Metadata {
+// MetadataCopy makes a copy of the metadata.
+func MetadataCopy(md Metadata) Metadata {
 	cmd := make(Metadata, len(md))
 	for k, v := range md {
 		cmd[k] = v
@@ -51,13 +50,13 @@ func Copy(md Metadata) Metadata {
 	return cmd
 }
 
-// Delete key from metadata.
-func Delete(ctx context.Context, k string) context.Context {
-	return Set(ctx, k, "")
+// ContextDelete key from metadata.
+func ContextDelete(ctx context.Context, k string) context.Context {
+	return ContextSet(ctx, k, "")
 }
 
-// Set add key with val to metadata.
-func Set(ctx context.Context, k, v string) context.Context {
+// ContextSet add key with val to metadata.
+func ContextSet(ctx context.Context, k, v string) context.Context {
 	md, ok := FromContext(ctx)
 	if !ok {
 		md = make(Metadata)
@@ -70,8 +69,8 @@ func Set(ctx context.Context, k, v string) context.Context {
 	return context.WithValue(ctx, metadataKey{}, md)
 }
 
-// Get returns a single value from metadata in the context.
-func Get(ctx context.Context, key string) (string, bool) {
+// ContextGet returns a single value from metadata in the context.
+func ContextGet(ctx context.Context, key string) (string, bool) {
 	md, ok := FromContext(ctx)
 	if !ok {
 		return "", ok

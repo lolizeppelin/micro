@@ -1,4 +1,4 @@
-package grpc
+package server
 
 import (
 	"github.com/lolizeppelin/micro"
@@ -7,14 +7,14 @@ import (
 
 type Service struct {
 	opts      *options
-	services  map[string]map[string]*CompHandler
+	services  map[string]map[string]*Handler
 	endpoints []*micro.Endpoint
 	registry  *micro.Service
 	//subscribers map[string]broker.Handler
 	subscribed map[string]broker.Subscriber
 }
 
-func (s *Service) Handler(service string, method string) *CompHandler {
+func (s *Service) Handler(service string, method string) *Handler {
 	sv, ok := s.services[service]
 	if !ok {
 		return nil

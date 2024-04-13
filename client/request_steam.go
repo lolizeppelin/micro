@@ -6,8 +6,7 @@ import (
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
-	hd "github.com/lolizeppelin/micro/transport/headers"
-	"github.com/lolizeppelin/micro/transport/metadata"
+	"github.com/lolizeppelin/micro/transport"
 	"github.com/lolizeppelin/micro/utils"
 	"sync/atomic"
 	"time"
@@ -19,7 +18,7 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 
 	headers := make(map[string]string)
 
-	md, ok := metadata.FromContext(ctx)
+	md, ok := transport.FromContext(ctx)
 	if ok {
 		for k, v := range md {
 			headers[k] = v
@@ -33,9 +32,9 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	protocol := req.ContentType()
 	accept := req.Accept()
 	// set the content type for the request
-	headers[hd.ContentType] = protocol
+	headers[micro.ContentType] = protocol
 	// set the accept header
-	headers[hd.Accept] = accept
+	headers[micro.Accept] = accept
 	// set old codecs
 	c, err := r.opts.Transport.Dial(address, opts.DialTimeout)
 	if err != nil {

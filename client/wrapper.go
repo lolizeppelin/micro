@@ -3,8 +3,7 @@ package client
 import (
 	"context"
 	"github.com/lolizeppelin/micro"
-	"github.com/lolizeppelin/micro/transport/headers"
-	"github.com/lolizeppelin/micro/transport/metadata"
+	"github.com/lolizeppelin/micro/transport"
 )
 
 // CallFunc represents the individual call func.
@@ -22,12 +21,12 @@ type StreamWrapper func(micro.Stream) micro.Stream
 type fromServiceWrapper struct {
 	Client
 	// headers to inject
-	headers metadata.Metadata
+	headers transport.Metadata
 }
 
 func (f *fromServiceWrapper) setHeaders(ctx context.Context) context.Context {
 	// don't overwrite keys
-	return metadata.MergeContext(ctx, f.headers, false)
+	return transport.MergeContext(ctx, f.headers, false)
 }
 
 func (f *fromServiceWrapper) Call(ctx context.Context, req micro.Request, rsp interface{}, opts ...CallOption) error {
@@ -49,8 +48,8 @@ func (f *fromServiceWrapper) Publish(ctx context.Context, req micro.Request, opt
 func FromService(name string, c Client) Client {
 	return &fromServiceWrapper{
 		c,
-		metadata.Metadata{
-			headers.Prefix + "From-Service": name,
+		transport.Metadata{
+			transport.Prefix + "From-Service": name,
 		},
 	}
 }

@@ -1,5 +1,4 @@
-// Package grpc provides a grpc server
-package grpc
+package server
 
 import (
 	"context"

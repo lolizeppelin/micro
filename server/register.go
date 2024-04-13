@@ -1,4 +1,4 @@
-package grpc
+package server
 
 import (
 	"github.com/lolizeppelin/micro/log"

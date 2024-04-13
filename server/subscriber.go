@@ -1,14 +1,14 @@
-package grpc
+package server
 
 import (
 	"context"
 	"fmt"
+	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/broker"
 	"github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/registry"
-	hd "github.com/lolizeppelin/micro/transport/headers"
-	"github.com/lolizeppelin/micro/transport/metadata"
+	"github.com/lolizeppelin/micro/transport"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -34,7 +34,7 @@ func (s *Service) dispatch(event broker.Event) (err error) {
 		return fmt.Errorf("no haaders found")
 	}
 
-	endpoint := msg.Header[hd.Endpoint]
+	endpoint := msg.Header[transport.Endpoint]
 	parts := strings.Split(endpoint, ".")
 	if len(parts) != 2 {
 		return fmt.Errorf("no haaders found")
@@ -58,14 +58,14 @@ func (s *Service) dispatch(event broker.Event) (err error) {
 
 	hdr := make(map[string]string, len(msg.Header))
 	for k, v := range msg.Header {
-		if k == hd.ContentType {
+		if k == micro.ContentType {
 			continue
 		}
 		hdr[k] = v
 	}
 
-	ctx := metadata.NewContext(context.Background(), hdr)
-	args, err := handler.BuildArgs(ctx, msg.Header[hd.ContentType], msg.Body)
+	ctx := transport.NewContext(context.Background(), hdr)
+	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Body)
 	if err != nil {
 		return err
 	}

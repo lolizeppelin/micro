@@ -1,4 +1,4 @@
-package grpc
+package server
 
 import (
 	"context"
@@ -73,7 +73,7 @@ func ServiceMethod(m string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-type CompHandler struct {
+type Handler struct {
 	Internal bool
 	Name     string            // method name
 	Receiver reflect.Value     // receiver of method
@@ -83,7 +83,7 @@ type CompHandler struct {
 	Metadata map[string]string // 元数据
 }
 
-func (handler *CompHandler) BuildArgs(ctx context.Context, protocol string, body []byte) ([]reflect.Value, error) {
+func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []byte) ([]reflect.Value, error) {
 	args := []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}
 	if handler.Request == nil {
 		return args, nil
@@ -135,16 +135,16 @@ func isHandlerMethod(method reflect.Method) bool {
 	return true
 }
 
-func extractComponent(component micro.Component) map[string]*CompHandler {
+func extractComponent(component micro.Component) map[string]*Handler {
 	typ := reflect.TypeOf(component)
-	methods := make(map[string]*CompHandler)
+	methods := make(map[string]*Handler)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
 		mt := method.Type
 		name := strings.ToLower(method.Name)
 		if isHandlerMethod(method) {
 			metadata := make(map[string]string)
-			handler := &CompHandler{
+			handler := &Handler{
 				Method: method,
 			}
 			if mt.NumIn() == 3 {
@@ -178,8 +178,8 @@ func extractComponent(component micro.Component) map[string]*CompHandler {
 	return methods
 }
 
-func ExtractComponents(components []micro.Component) map[string]map[string]*CompHandler {
-	services := make(map[string]map[string]*CompHandler)
+func ExtractComponents(components []micro.Component) map[string]map[string]*Handler {
+	services := make(map[string]map[string]*Handler)
 	for _, c := range components {
 		value := reflect.ValueOf(c)
 		name := reflect.Indirect(value).Type().Name()
@@ -208,7 +208,7 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Comp
 			handler.Internal = internal
 			m, ok := services[name]
 			if !ok {
-				m = make(map[string]*CompHandler)
+				m = make(map[string]*Handler)
 				services[name] = m
 			}
 			m[method] = handler
@@ -217,7 +217,7 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Comp
 	return services
 }
 
-func extractEndpoints(services map[string]map[string]*CompHandler) (endpoints []*micro.Endpoint) {
+func extractEndpoints(services map[string]map[string]*Handler) (endpoints []*micro.Endpoint) {
 	for name, service := range services {
 		for method, handler := range service {
 			endpoint := &micro.Endpoint{

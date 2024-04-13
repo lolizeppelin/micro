@@ -1,15 +1,14 @@
-package grpc
+package server
 
 import (
 	"context"
 	"errors"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
-	hd "github.com/lolizeppelin/micro/transport/headers"
-	meta "github.com/lolizeppelin/micro/transport/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -30,7 +29,7 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	if err := stream.RecvMsg(msg); err != nil {
 		return status.New(codes.InvalidArgument, "decode message failed").Err()
 	}
-	endpoint, ok := msg.Header[hd.Endpoint]
+	endpoint, ok := msg.Header[transport.Endpoint]
 	if !ok {
 		return status.New(codes.InvalidArgument, "endpoint not found from header").Err()
 	}
@@ -46,7 +45,7 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	// copy the metadata to go-micro.metadata
 
 	timeout := int64(0)
-	md := meta.Metadata{}
+	md := transport.Metadata{}
 	for k, v := range gmd {
 		if k == "x-content-type" {
 			continue
@@ -56,10 +55,10 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 		}
 		md[k] = strings.Join(v, ", ")
 	}
-	md[hd.Method] = msg.Header[hd.Method]
+	md[transport.Method] = msg.Header[transport.Method]
 
 	// create new context
-	ctx := meta.NewContext(stream.Context(), md)
+	ctx := transport.NewContext(stream.Context(), md)
 
 	// get peer from context
 	if p, ok := peer.FromContext(stream.Context()); ok {
@@ -75,8 +74,8 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	}
 
 	handler := g.service.Handler(serviceName, methodName)
-	protocol, ok := msg.Header[hd.ContentType]
-	accept, ok := msg.Header[hd.Accept]
+	protocol, ok := msg.Header[micro.ContentType]
+	accept, ok := msg.Header[micro.Accept]
 	if !codec.MatchCodec(protocol, accept, handler.Metadata["res"], handler.Metadata["req"]) {
 
 	}
@@ -93,9 +92,9 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 }
 
 func (g *RPCServer) processRequest(ctx context.Context, stream grpc.ServerStream,
-	handler *CompHandler, msg *transport.Message) error {
+	handler *Handler, msg *transport.Message) error {
 
-	args, err := handler.BuildArgs(ctx, msg.Header[hd.ContentType], msg.Body)
+	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Body)
 	if err != nil {
 		return err
 	}

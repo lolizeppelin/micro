@@ -7,7 +7,6 @@ import (
 	"github.com/lolizeppelin/micro/codec/grpc"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/transport"
-	"github.com/lolizeppelin/micro/transport/headers"
 )
 
 const (
@@ -67,13 +66,13 @@ func getHeaders(m *codec.Message) {
 		return m.Header[hdr]
 	}
 	// check error in header
-	m.Error = set(m.Error, headers.Error)
+	m.Error = set(m.Error, transport.Error)
 	// check endpoint in header
-	m.Endpoint = set(m.Endpoint, headers.Endpoint)
+	m.Endpoint = set(m.Endpoint, transport.Endpoint)
 	// check method in header
-	m.Method = set(m.Method, headers.Method)
+	m.Method = set(m.Method, transport.Method)
 	// set the request id
-	m.Id = set(m.Id, headers.ID)
+	m.Id = set(m.Id, transport.ID)
 }
 
 func setHeaders(m *codec.Message, stream string) {
@@ -85,14 +84,14 @@ func setHeaders(m *codec.Message, stream string) {
 		m.Header[hdr] = v
 	}
 
-	set(headers.ID, m.Id)
-	set(headers.Service, m.Service)
-	set(headers.Method, m.Method)
-	set(headers.Endpoint, m.Endpoint)
-	set(headers.Error, m.Error)
+	set(transport.ID, m.Id)
+	set(transport.Service, m.Service)
+	set(transport.Method, m.Method)
+	set(transport.Endpoint, m.Endpoint)
+	set(transport.Error, m.Error)
 
 	if len(stream) > 0 {
-		set(headers.Stream, stream)
+		set(transport.Stream, stream)
 	}
 }
 

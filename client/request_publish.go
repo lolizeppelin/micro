@@ -10,8 +10,6 @@ import (
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/registry"
 	"github.com/lolizeppelin/micro/transport"
-	hd "github.com/lolizeppelin/micro/transport/headers"
-	"github.com/lolizeppelin/micro/transport/metadata"
 )
 
 func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...CallOption) error {
@@ -36,12 +34,12 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	}
 
 	topic := registry.Topic(request.Service(), request.Version(), node)
-	headers := metadata.CopyFromContext(ctx)
+	headers := transport.CopyFromContext(ctx)
 	protocol := request.ContentType()
-	headers[hd.ContentType] = protocol
-	headers[hd.Service] = request.Service()
-	headers[hd.Method] = request.Method()
-	headers[hd.Endpoint] = request.Endpoint()
+	headers[micro.ContentType] = protocol
+	headers[transport.Service] = request.Service()
+	headers[transport.Method] = request.Method()
+	headers[transport.Endpoint] = request.Endpoint()
 
 	msg := &transport.Message{
 		Header: headers,

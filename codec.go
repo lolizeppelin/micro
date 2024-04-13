@@ -13,3 +13,9 @@ var (
 		"application/octet-stream": "application/grpc+bytes",
 	}
 )
+
+const (
+	HeaderNode  = "X-Node-Id" // 限定 node
+	ContentType = "Content-Type"
+	Accept      = "Accept"
+)

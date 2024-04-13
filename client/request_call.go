@@ -6,8 +6,7 @@ import (
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
-	hd "github.com/lolizeppelin/micro/transport/headers"
-	"github.com/lolizeppelin/micro/transport/metadata"
+	"github.com/lolizeppelin/micro/transport"
 	"github.com/lolizeppelin/micro/utils"
 	"sync/atomic"
 	"time"
@@ -16,13 +15,13 @@ import (
 func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Request, resp interface{}, opts CallOptions) error {
 	address := node.Address
 
-	headers := metadata.CopyFromContext(ctx)
+	headers := transport.CopyFromContext(ctx)
 	protocol := req.ContentType()
 	accept := req.Accept()
-	headers[hd.ContentType] = protocol
-	headers[hd.Service] = req.Service()
-	headers[hd.Method] = req.Method()
-	headers[hd.Endpoint] = req.Endpoint()
+	headers[micro.ContentType] = protocol
+	headers[transport.Service] = req.Service()
+	headers[transport.Method] = req.Method()
+	headers[transport.Endpoint] = req.Endpoint()
 
 	// Set connection timeout for single requests to the server. Should be > 0
 	// as otherwise requests can't be made.
