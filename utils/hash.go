@@ -1,7 +1,11 @@
 package utils
 
 import (
+	"crypto/hmac"
+	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 )
 
@@ -40,4 +44,22 @@ func Sha256Hash(value string, salt string) string {
 	b := sha256.Sum256([]byte(value))
 	b = sha256.Sum256([]byte(hex.EncodeToString(b[:]) + salt))
 	return hex.EncodeToString(b[:])
+}
+
+func MD5Sum(value string, salt string) string {
+	hash := md5.Sum([]byte(value + salt))
+	return hex.EncodeToString(hash[:])
+}
+
+func Sha1Sum(value string, salt string) string {
+	h := sha1.New()
+	h.Write([]byte(value))
+	h.Write([]byte(salt))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func Sha1Hmac(value string, salt string) string {
+	h := hmac.New(sha1.New, []byte(salt))
+	h.Write([]byte(value))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
