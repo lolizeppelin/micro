@@ -8,7 +8,7 @@ import (
 type Options struct {
 	Registry micro.Registry
 	Strategy Strategy
-	Seconds  time.Duration
+	TTL      time.Duration
 }
 
 type Option func(*Options)
@@ -28,8 +28,8 @@ func WithStrategy(fn Strategy) Option {
 }
 
 // WithCacheSeconds sets the seconds of cache ttl
-func WithCacheSeconds(seconds time.Duration) Option {
+func WithCacheSeconds(seconds int32) Option {
 	return func(o *Options) {
-		o.Seconds = time.Second * seconds
+		o.TTL = time.Second * time.Duration(seconds)
 	}
 }

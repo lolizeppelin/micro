@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro"
-	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/selector"
@@ -33,8 +32,8 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 						// 返回与内部请求校验
 						if opts.Internal || !ep.Internal {
 							// 请求与返回协议校验
-							if !codec.MatchCodec(request.ContentType(), request.Accept(),
-								ep.Metadata["res"], ep.Metadata["req"]) {
+							if request.ContentType() != ep.Metadata["res"] ||
+								request.Accept() != ep.Metadata["req"] {
 								return nil, fmt.Errorf("bad request or response content type")
 							}
 							break

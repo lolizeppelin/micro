@@ -25,7 +25,7 @@ func (c *registrySelector) Init(opts ...Option) error {
 	}
 
 	c.rc.Stop()
-	c.rc = c.newCache(c.so.Seconds)
+	c.rc = c.newCache(c.so.TTL)
 
 	return nil
 }
@@ -91,6 +91,6 @@ func NewSelector(opts ...Option) (Selector, error) {
 	s := &registrySelector{
 		so: _opts,
 	}
-	s.rc = s.newCache(_opts.Seconds)
+	s.rc = s.newCache(_opts.TTL)
 	return s, nil
 }
