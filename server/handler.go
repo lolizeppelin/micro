@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/lolizeppelin/micro"
-	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
@@ -76,8 +75,9 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	handler := g.service.Handler(serviceName, methodName)
 	protocol, ok := msg.Header[micro.ContentType]
 	accept, ok := msg.Header[micro.Accept]
-	if !codec.MatchCodec(protocol, accept, handler.Metadata["res"], handler.Metadata["req"]) {
 
+	if !handler.Match(protocol, accept) {
+		log.Warnf("reuqet protocol/accept not match")
 	}
 
 	if handler == nil {

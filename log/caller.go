@@ -8,7 +8,7 @@ import (
 )
 
 const logrusPackage = "github.com/sirupsen/logrus"
-const libsPackage = "go-diyibo/libs/libs/logging"
+const libsPackage = "github.com/lolizeppelin/micro/log"
 
 var skips = []string{
 	logrusPackage,
@@ -37,9 +37,10 @@ func caller(*runtime.Frame) string {
 	for f, again := frames.Next(); again; f, again = frames.Next() {
 		pkg := getPackageName(f.Function)
 		// If the caller isn't part of this package, we're done
-		if !utils.IncludeInSlice(skips, pkg) {
-			return fmt.Sprintf(" %s:%d ", f.File, f.Line)
+		if utils.IncludeInSlice(skips, pkg) {
+			continue
 		}
+		return fmt.Sprintf("%s:%d ", f.File, f.Line)
 	}
 	return ""
 }

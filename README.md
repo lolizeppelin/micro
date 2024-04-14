@@ -18,3 +18,13 @@
 - tracing 链路追踪
 - transport grpc传输层
 - utils 通用工具
+
+
+
+## IDEA 设置
+- Ctrl+Shift+A 搜索Registry并点击
+```text
+取消勾选下列值
+go.run.processes.with.pty
+terminal.use.conpty.on.windows
+```

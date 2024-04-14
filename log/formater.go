@@ -231,6 +231,7 @@ func NewFormatter() *Formatter {
 		TimestampFormat: "2006-01-02 15:04:05",
 		HideKeys:        true,
 		NoColors:        utils.Linux,
+		NoFieldsSpace:   true,
 		CallerFirst:     true,
 		FieldsOrder:     []string{"program"},
 	}

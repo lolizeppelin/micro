@@ -166,7 +166,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 				}
 			}
 			if mt.NumOut() == 2 {
-				handler.Response = mt.Out(2)
+				handler.Response = mt.Out(0)
 				if handler.Response == typeOfBytes {
 					metadata["res"] = "bytes"
 				} else if handler.Response.Implements(typeOfProtoMsg) {

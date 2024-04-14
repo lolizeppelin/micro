@@ -70,6 +70,18 @@ func NewOptions(options ...Option) Options {
 	return opts
 }
 
+func Selector(s selector.Selector) Option {
+	return func(o *Options) {
+		o.Selector = s
+	}
+}
+
+func Registry(r micro.Registry) Option {
+	return func(o *Options) {
+		o.Registry = r
+	}
+}
+
 // PoolSize sets the connection pool size.
 func PoolSize(d int) Option {
 	return func(o *Options) {

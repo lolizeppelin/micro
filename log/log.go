@@ -1,7 +1,6 @@
 package log
 
 import (
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -17,7 +16,6 @@ func newLogger(path string) (*Logger, error) {
 		var err error
 		file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 		if err != nil {
-			fmt.Printf("error opening file: %v", err)
 			return nil, err
 		}
 	} else {
