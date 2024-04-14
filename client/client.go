@@ -67,15 +67,14 @@ func NewClient(opt ...Option) (Client, error) {
 	return c, nil
 }
 
-func NewRequest(target micro.Target, protocol, accept string, request interface{}) micro.Request {
+func NewRequest(target micro.Target, protocols *micro.Protocols, request interface{}) micro.Request {
 
 	return &rpcRequest{
-		service:  target.Service,
-		method:   target.Method,
-		endpoint: target.Endpoint,
-		body:     request,
-		protocol: protocol,
-		accept:   accept,
-		version:  target.Version,
+		service:   target.Service,
+		method:    target.Method,
+		endpoint:  target.Endpoint,
+		body:      request,
+		protocols: protocols,
+		version:   target.Version,
 	}
 }

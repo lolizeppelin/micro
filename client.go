@@ -14,9 +14,7 @@ type Request interface {
 	// The endpoint to invoke
 	Endpoint() string
 	// The content type
-	ContentType() string
-	// response content type
-	Accept() string
+	Protocols() *Protocols
 	// The unencoded request body
 	Body() interface{}
 	// service version fileter

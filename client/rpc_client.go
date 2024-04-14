@@ -151,7 +151,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 }
 
 func (r *rpcClient) Publish(ctx context.Context, request micro.Request, opts ...CallOption) error {
-	if request.ContentType() == "" {
+	if request.Protocols().Reqeust == "" {
 		return fmt.Errorf("content type required on publish")
 	}
 	if r.opts.Broker != nil {

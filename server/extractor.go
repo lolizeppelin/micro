@@ -100,8 +100,10 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 	return args, nil
 }
 
-func (handler *Handler) Match(protocol, accept string) bool {
-	return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
+func (handler *Handler) Match(request, response string) bool {
+	//return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
+	return micro.MatchCodec(request, handler.Metadata["req"]) &&
+		micro.MatchCodec(response, handler.Metadata["res"])
 }
 
 func isHandlerMethod(method reflect.Method) bool {
@@ -149,6 +151,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 		if isHandlerMethod(method) {
 			metadata := make(map[string]string)
 			handler := &Handler{
+				Name:   name,
 				Method: method,
 			}
 			if mt.NumIn() == 3 {

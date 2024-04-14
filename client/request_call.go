@@ -16,8 +16,8 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	address := node.Address
 
 	headers := transport.CopyFromContext(ctx)
-	protocol := req.ContentType()
-	accept := req.Accept()
+	protocol := req.Protocols().Reqeust
+	accept := req.Protocols().Response
 	headers[micro.ContentType] = protocol
 	headers[transport.Service] = req.Service()
 	headers[transport.Method] = req.Method()

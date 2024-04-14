@@ -29,8 +29,8 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	if opts.StreamTimeout > time.Duration(0) {
 		headers["Timeout"] = utils.UnsafeToString(opts.StreamTimeout / time.Second)
 	}
-	protocol := req.ContentType()
-	accept := req.Accept()
+	protocol := req.Protocols().Reqeust
+	accept := req.Protocols().Response
 	// set the content type for the request
 	headers[micro.ContentType] = protocol
 	// set the accept header

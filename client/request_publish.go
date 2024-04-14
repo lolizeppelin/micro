@@ -35,7 +35,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 
 	topic := registry.Topic(request.Service(), request.Version(), node)
 	headers := transport.CopyFromContext(ctx)
-	protocol := request.ContentType()
+	protocol := request.Protocols().Reqeust
 	headers[micro.ContentType] = protocol
 	headers[transport.Service] = request.Service()
 	headers[transport.Method] = request.Method()

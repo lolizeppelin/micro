@@ -16,6 +16,7 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 	filters := opts.Filters
 	version := request.Version()
 	minor := version.Minor()
+	protocols := request.Protocols()
 
 	// 标准过滤器
 	filters = utils.InsertSlice(opts.Filters,
@@ -32,8 +33,8 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 						// 返回与内部请求校验
 						if opts.Internal || !ep.Internal {
 							// 请求与返回协议校验
-							if request.ContentType() != ep.Metadata["res"] ||
-								request.Accept() != ep.Metadata["req"] {
+							if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["res"]) ||
+								!micro.MatchCodec(protocols.Response, ep.Metadata["req"]) {
 								return nil, fmt.Errorf("bad request or response content type")
 							}
 							break
@@ -83,7 +84,8 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 		if errors.Is(err, micro.ErrSelectServiceNotFound) {
 			return nil, exc.InternalServerError("go.micro.client", "service %s: %s", service, err.Error())
 		}
-		return nil, exc.InternalServerError("go.micro.client", "error selecting %s node: %s", service, err.Error())
+		return nil, exc.InternalServerError("go.micro.client",
+			"error selecting %s node: %s", service, err.Error())
 	}
 	return next, nil
 }

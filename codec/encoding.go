@@ -55,19 +55,19 @@ func (jsonCodec) Name() string {
 type bytesCodec struct{}
 
 func (bytesCodec) Marshal(v interface{}) ([]byte, error) {
-	b, ok := v.(*[]byte)
+	b, ok := v.([]byte)
 	if !ok {
 		return nil, ErrInvalidMessage
 	}
-	return *b, nil
+	return b, nil
 }
 
 func (bytesCodec) Unmarshal(data []byte, v interface{}) error {
-	b, ok := v.(*[]byte)
+	b, ok := v.([]byte)
 	if !ok {
 		return ErrInvalidMessage
 	}
-	*b = data
+	copy(b, data)
 	return nil
 }
 

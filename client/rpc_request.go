@@ -6,22 +6,17 @@ import (
 )
 
 type rpcRequest struct {
-	codec    codec.Codec
-	body     interface{}
-	service  string
-	method   string
-	endpoint string
-	protocol string
-	accept   string
-	version  *micro.Version
+	codec     codec.Codec
+	body      interface{}
+	service   string
+	method    string
+	endpoint  string
+	protocols *micro.Protocols
+	version   *micro.Version
 }
 
-func (r *rpcRequest) ContentType() string {
-	return r.protocol
-}
-
-func (r *rpcRequest) Accept() string {
-	return r.protocol
+func (r *rpcRequest) Protocols() *micro.Protocols {
+	return r.protocols
 }
 
 func (r *rpcRequest) Service() string {
