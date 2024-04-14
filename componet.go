@@ -17,3 +17,22 @@ type Component interface {
 	Name() string
 	Internal() bool
 }
+
+type ComponentBase struct {
+}
+
+func (*ComponentBase) Init() {
+
+}
+func (*ComponentBase) AfterInit() {
+
+}
+func (*ComponentBase) BeforeShutdown() {
+
+}
+func (*ComponentBase) Shutdown() {
+
+}
+func (*ComponentBase) Internal() bool {
+	return true
+}

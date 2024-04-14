@@ -60,7 +60,7 @@ func configure(e *etcdRegistry, opts ...Option) error {
 	}
 	config.DialTimeout = e.options.Timeout
 
-	if e.options.Secure || e.options.TLSConfig != nil {
+	if e.options.TLSConfig != nil {
 		tlsConfig := e.options.TLSConfig
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{
