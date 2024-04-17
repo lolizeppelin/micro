@@ -3,7 +3,7 @@ package json
 import (
 	"testing"
 
-	"go-micro.dev/v4/config/source"
+	"github.com/lolizeppelin/micro/config/source"
 )
 
 func TestReader(t *testing.T) {
