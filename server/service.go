@@ -34,14 +34,6 @@ func newService(opts *options) *Service {
 		Metadata: opts.Metadata,
 	}
 
-	reg := &micro.Service{
-		Name:      opts.Name,
-		Version:   opts.Version.Main(), // 服务主版本号
-		Nodes:     []*micro.Node{node},
-		Endpoints: endpoints,
-		//Metadata:
-	}
-
 	//node.Metadata["broker"] = config.Broker.String()
 	//node.Metadata["registry"] = config.Registry.String()
 	//node.Metadata["server"] = g.String()
@@ -52,7 +44,13 @@ func newService(opts *options) *Service {
 		opts:      opts,
 		services:  services,
 		endpoints: endpoints,
-		registry:  reg,
+		registry: &micro.Service{
+			Name:      opts.Name,
+			Version:   opts.Version.Main(), // 服务主版本号
+			Nodes:     []*micro.Node{node},
+			Endpoints: endpoints,
+			Metadata:  map[string]string{},
+		},
 	}
 
 }

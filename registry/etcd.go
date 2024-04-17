@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
+	"go.uber.org/zap"
+
 	"golang.org/x/exp/maps"
 	"net"
 	"path"
@@ -49,8 +51,10 @@ func NewEtcdRegistry(opts ...Option) (micro.Registry, error) {
 }
 
 func configure(e *etcdRegistry, opts ...Option) error {
+
 	config := clientV3.Config{
 		Endpoints: []string{"127.0.0.1:2379"},
+		Logger:    zap.NewNop(),
 	}
 	for _, o := range opts {
 		o(&e.options)
@@ -67,7 +71,6 @@ func configure(e *etcdRegistry, opts ...Option) error {
 				InsecureSkipVerify: true,
 			}
 		}
-
 		config.TLS = tlsConfig
 	}
 
@@ -78,11 +81,10 @@ func configure(e *etcdRegistry, opts ...Option) error {
 			continue
 		}
 		addr, port, err := net.SplitHostPort(address)
-		if ae, ok := err.(*net.AddrError); ok && ae.Err == "missing port in address" {
+		var ae *net.AddrError
+		if errors.As(err, &ae) && ae.Err == "missing port in address" {
 			port = "2379"
 			addr = address
-			cAddress = append(cAddress, net.JoinHostPort(addr, port))
-		} else if err == nil {
 			cAddress = append(cAddress, net.JoinHostPort(addr, port))
 		}
 	}
@@ -95,6 +97,8 @@ func configure(e *etcdRegistry, opts ...Option) error {
 	if err != nil {
 		return err
 	}
+	//cli.Get()
+
 	e.client = cli
 	return nil
 }
@@ -120,8 +124,8 @@ func servicePath(s string) string {
 	return path.Join(prefix, strings.Replace(s, "/", "-", -1))
 }
 
-func (e *etcdRegistry) Options() Options {
-	return e.options
+func (e *etcdRegistry) Client() *clientV3.Client {
+	return e.client
 }
 
 func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
@@ -179,7 +183,7 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 	if leaseID > 0 {
 		log.Tracef("Renewing existing lease for %s %d", s.Name, leaseID)
 		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
-			if err != rpctypes.ErrLeaseNotFound {
+			if !errors.Is(err, rpctypes.ErrLeaseNotFound) {
 				return err
 			}
 
@@ -224,10 +228,10 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 		if err != nil {
 			return err
 		}
-	}
+		log.Tracef("Registering %s id %s with lease %v and leaseID %v and ttl %v",
+			service.Name, node.Id, lgr, lgr.ID, e.options.TTL)
 
-	log.Tracef("Registering %s id %s with lease %v and leaseID %v and ttl %v",
-		service.Name, node.Id, lgr, lgr.ID, e.options.TTL)
+	}
 	// create an entry for the node
 	if lgr != nil {
 		_, err = e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientV3.WithLease(lgr.ID))
@@ -254,7 +258,6 @@ func (e *etcdRegistry) Deregister(s *micro.Service) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("require at least one node")
 	}
-
 	for _, node := range s.Nodes {
 		e.Lock()
 		// delete our hash of the service

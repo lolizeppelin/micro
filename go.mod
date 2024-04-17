@@ -18,6 +18,7 @@ require (
 	golang.org/x/text v0.14.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
+	dario.cat/mergo v1.0.0
 )
 
 require (

@@ -25,14 +25,16 @@ func (g *RPCServer) Register() error {
 		err = config.Registry.Register(service)
 		if err != nil {
 			// backoff then retry
+			log.Errorf("Registry register failed: %s", err.Error())
 			time.Sleep(utils.BackoffDelay(i + 1))
 			continue
 		}
+		log.Info("Registry register success")
 		// success so nil error
 		break
 	}
 	if err != nil {
-		log.Infof("Registry [%s] Registering node: %s", config.Registry.String(), service.Name)
+		log.Errorf("Registry [%s] Registering node: %s", config.Registry.String(), service.Name)
 		return err
 	}
 
@@ -53,9 +55,11 @@ func (g *RPCServer) Register() error {
 
 func (g *RPCServer) Deregister() error {
 
-	service := g.service.registry
-	if err := g.opts.Registry.Deregister(service); err != nil {
-		return err
+	if g.opts != nil && g.opts.Registry != nil {
+		service := g.service.registry
+		if err := g.opts.Registry.Deregister(service); err != nil {
+			return err
+		}
 	}
 
 	g.Lock()

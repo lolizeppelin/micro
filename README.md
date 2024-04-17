@@ -9,8 +9,8 @@
 - broker 异步推送(默认kafka)
 - breaker grpc客户端
 - codec 序列化工具
+- config 全局配置
 - errors 通用错误
-- interfaces 通用接口
 - log 日志
 - registry 注册服务
 - resolver 

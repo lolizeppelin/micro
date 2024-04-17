@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/utils"
@@ -69,15 +68,16 @@ func (g *RPCServer) Start() error {
 	config := g.opts
 
 	log.Infof("Server [grpc] Listening on %s", g.opts.Address)
-	if err := g.Register(); err != nil {
-		log.Errorf("Server register error: %s", err.Error())
-		return err
-	}
 
-	// micro: go ts.Accept(s.accept)
 	go func() {
 		if err := g.server.Serve(g.opts.Listener); err != nil {
 			log.Errorf("gRPC Server start error: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := g.Register(); err != nil {
+			log.Errorf("Server register error: %s", err.Error())
 		}
 	}()
 
@@ -99,20 +99,27 @@ func (g *RPCServer) Start() error {
 				registered := g.registered
 				g.RUnlock()
 				ctx := context.Background()
-				rErr := g.opts.RegisterCheck(ctx)
-				if rErr != nil && registered {
-					log.Errorf("server %s-%d register check error: %s, deregister it", config.Name, config.Id, rErr)
-					// deregister self in case of error
-					if err := g.Deregister(); err != nil {
-						log.Errorf("Server %s-%d deregister error: %s", config.Name, config.Id, err)
+				if !registered {
+					err = g.Register()
+					if err != nil {
+						log.Errorf("Server %s-%d register error: %s", config.Name, config.Id, err.Error())
 					}
-				} else if rErr != nil && !registered {
-					log.Errorf("Server %s-%d register check error: %s", config.Name, config.Id, rErr)
-					continue
+				} else {
+					err = g.opts.RegisterCheck(ctx)
+					if err != nil {
+						log.Errorf("server %s-%d register check error: %s, deregister it", config.Name, config.Id, err.Error())
+						err = g.Deregister()
+						if err != nil {
+							log.Errorf("Server %s-%d deregister error: %s", config.Name, config.Id, err)
+						} else {
+							err = g.Register()
+							if err != nil {
+								log.Errorf("Server register error: %s", err.Error())
+							}
+						}
+					}
 				}
-				if err := g.Register(); err != nil {
-					log.Errorf("Server register error: %s", err.Error())
-				}
+
 			// wait for exit
 			case ch = <-g.exit:
 				break Loop
@@ -212,7 +219,7 @@ func NewServer(o ...Option) (*RPCServer, error) {
 	}
 
 	if !utils.VerifyAddr(opts.Address) {
-		return nil, fmt.Errorf("address value error")
+		//return nil, fmt.Errorf("address value error")
 	}
 
 	if opts.WaitGroup == nil {
@@ -222,6 +229,10 @@ func NewServer(o ...Option) (*RPCServer, error) {
 	if opts.Version == nil {
 		version, _ := micro.NewVersion("1.0")
 		opts.Version = version
+	}
+
+	if opts.Metadata == nil {
+		opts.Metadata = map[string]string{}
 	}
 
 	return newGRPCServer(opts), nil

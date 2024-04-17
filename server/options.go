@@ -51,13 +51,9 @@ func WithName(name string) Option {
 	}
 }
 
-func WithVersion(version string) Option {
-	v, err := micro.NewVersion(version)
-	if err != nil {
-		panic("node version value error")
-	}
+func WithVersion(version *micro.Version) Option {
 	return func(o *options) {
-		o.Version = v
+		o.Version = version
 	}
 }
 
