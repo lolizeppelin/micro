@@ -3,7 +3,6 @@ package selector
 import "github.com/lolizeppelin/micro"
 
 type Selector interface {
-	Init(opts ...Option) error
 	// Select returns a function which should return the next node
 	Select(service string, filters ...Filter) (Next, error)
 	// Mark sets the success/error against a node

@@ -113,3 +113,7 @@ func Tracef(format string, args ...interface{}) {
 func Fatalf(format string, args ...interface{}) {
 	LOG.Fatalf(format, args...)
 }
+
+func IsDebugEnabled() bool {
+	return LOG.Logger.IsLevelEnabled(logrus.DebugLevel)
+}

@@ -29,7 +29,7 @@ func (g *RPCServer) Register() error {
 			time.Sleep(utils.BackoffDelay(i + 1))
 			continue
 		}
-		log.Info("Registry register success")
+		log.Debugf("Registry register or keep alive success")
 		// success so nil error
 		break
 	}

@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
@@ -27,6 +26,7 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 				if version.Main() != s.Version {
 					continue
 				}
+				found := false
 				// 服务endpoint匹配
 				for _, ep := range s.Endpoints {
 					if ep.Name == endpoint {
@@ -35,12 +35,16 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 							// 请求与返回协议校验
 							if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["res"]) ||
 								!micro.MatchCodec(protocols.Response, ep.Metadata["req"]) {
-								return nil, fmt.Errorf("bad request or response content type")
+								return nil, exc.BadRequest("go.micro.client.selector", "request or response type mismatch")
 							}
+							found = true
 							break
 						}
-						return nil, fmt.Errorf("disable proxy internal request")
+						return nil, exc.NotFound("go.micro.client.selector", "endpoint not found")
 					}
+				}
+				if !found {
+					return nil, micro.ErrSelectEndpointNotFound
 				}
 				// 节点过滤
 				if opts.Node != "" || minor > 0 {
@@ -82,10 +86,15 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 	next, err := r.opts.Selector.Select(service, filters...)
 	if err != nil {
 		if errors.Is(err, micro.ErrSelectServiceNotFound) {
-			return nil, exc.InternalServerError("go.micro.client", "service %s: %s", service, err.Error())
+			return nil, exc.ServiceUnavailable("go.micro.client", err.Error())
 		}
-		return nil, exc.InternalServerError("go.micro.client",
-			"error selecting %s node: %s", service, err.Error())
+		if errors.Is(err, micro.ErrNoneServiceAvailable) {
+			return nil, exc.ServiceUnavailable("go.micro.client", err.Error())
+		}
+		if errors.Is(err, micro.ErrSelectEndpointNotFound) {
+			return nil, exc.NotFound("go.micro.client", err.Error())
+		}
+		return nil, err
 	}
 	return next, nil
 }

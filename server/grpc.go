@@ -99,25 +99,23 @@ func (g *RPCServer) Start() error {
 				registered := g.registered
 				g.RUnlock()
 				ctx := context.Background()
-				if !registered {
-					err = g.Register()
-					if err != nil {
-						log.Errorf("Server %s-%d register error: %s", config.Name, config.Id, err.Error())
+
+				checkErr := g.opts.RegisterCheck(ctx)
+				if checkErr != nil && registered {
+					log.Errorf("Server %s-%d register check error: %s, deregister it",
+						config.Name, config.Id, checkErr.Error())
+					// deregister self in case of error
+					if err = g.Deregister(); err != nil {
+						log.Errorf("Server %s-%s deregister error: %s", config.Name, config.Id, err)
 					}
-				} else {
-					err = g.opts.RegisterCheck(ctx)
-					if err != nil {
-						log.Errorf("server %s-%d register check error: %s, deregister it", config.Name, config.Id, err.Error())
-						err = g.Deregister()
-						if err != nil {
-							log.Errorf("Server %s-%d deregister error: %s", config.Name, config.Id, err)
-						} else {
-							err = g.Register()
-							if err != nil {
-								log.Errorf("Server register error: %s", err.Error())
-							}
-						}
-					}
+				} else if checkErr != nil && !registered {
+					log.Errorf("Server %s-%d register check error: %s",
+						config.Name, config.Id, checkErr.Error())
+					continue
+				}
+				// Register 内部包含续租
+				if err = g.Register(); err != nil {
+					log.Errorf("Server register error: %s", err.Error())
 				}
 
 			// wait for exit

@@ -19,17 +19,6 @@ func (c *registrySelector) newCache(ttl time.Duration) cache.Cache {
 	return cache.New(c.so.Registry, ttl)
 }
 
-func (c *registrySelector) Init(opts ...Option) error {
-	for _, o := range opts {
-		o(&c.so)
-	}
-
-	c.rc.Stop()
-	c.rc = c.newCache(c.so.TTL)
-
-	return nil
-}
-
 func (c *registrySelector) Select(service string, filters ...Filter) (Next, error) {
 
 	// get the service
@@ -53,7 +42,7 @@ func (c *registrySelector) Select(service string, filters ...Filter) (Next, erro
 
 	// if there's nothing left, return
 	if len(services) == 0 {
-		return nil, micro.ErrNoneServiceAvailable
+		return nil, micro.ErrSelectEndpointNotFound
 	}
 
 	return c.so.Strategy(services), nil

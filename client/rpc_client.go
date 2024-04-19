@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/lolizeppelin/micro"
@@ -91,12 +90,10 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 		service := request.Service()
 
 		if err != nil {
-			if errors.Is(err, micro.ErrSelectServiceNotFound) {
-				return exc.InternalServerError("go.micro.client", "service %s: %s", service, err.Error())
-			}
-
-			return exc.InternalServerError("go.micro.client", "error getting next %s node: %s", service, err.Error())
+			return err
 		}
+
+		log.Debugf("find service %s", node.Id)
 
 		// make the call
 		err = rcall(ctx, node, request, response, callOpts)
@@ -140,7 +137,9 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 			if !retry {
 				return err
 			}
-
+			if err != nil {
+				log.Error(err.Error())
+			}
 			log.Debugf("Retrying request. Previous attempt failed with: %v", err)
 
 			gerr = err
@@ -197,11 +196,7 @@ func (r *rpcClient) Stream(ctx context.Context, request micro.Request, opts ...C
 		service := request.Service()
 
 		if err != nil {
-			if errors.Is(err, micro.ErrSelectServiceNotFound) {
-				return nil, exc.InternalServerError("go.micro.client", "service %s: %s", service, err.Error())
-			}
-
-			return nil, exc.InternalServerError("go.micro.client", "error getting next %s node: %s", service, err.Error())
+			return nil, err
 		}
 
 		var stream micro.Stream
