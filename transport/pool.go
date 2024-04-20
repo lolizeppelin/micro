@@ -117,8 +117,11 @@ func (p *Pool) Release(conn *Conn, err error) error {
 	conns := p.conns[conn.Remote()]
 	if len(conns) >= p.size {
 		return conn.Client.Close()
+	} else {
+		if err = conn.Client.CloseSend(); err != nil {
+			return err
+		}
 	}
-
 	p.conns[conn.Remote()] = append(conns, conn)
 
 	return nil

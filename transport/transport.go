@@ -25,6 +25,7 @@ type Socket interface {
 	Recv(*Message) error
 	Send(*Message) error
 	Close() error
+	CloseSend() error
 	Local() string
 	Remote() string
 }

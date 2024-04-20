@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"github.com/lolizeppelin/micro/transport"
 	pb "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"google.golang.org/grpc"
@@ -50,4 +51,17 @@ func (g *grpcTransportClient) Send(m *transport.Message) error {
 
 func (g *grpcTransportClient) Close() error {
 	return g.conn.Close()
+}
+
+func (g *grpcTransportClient) CloseSend() error {
+	err := g.stream.CloseSend()
+	if err != nil {
+		return nil
+	}
+	stream, err := pb.NewTransportClient(g.conn).Stream(context.Background())
+	if err != nil {
+		return err
+	}
+	g.stream = stream
+	return nil
 }
