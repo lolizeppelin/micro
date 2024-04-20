@@ -6,6 +6,7 @@ import (
 	"github.com/lolizeppelin/micro/codec"
 	"github.com/lolizeppelin/micro/codec/grpc"
 	exc "github.com/lolizeppelin/micro/errors"
+	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
 )
 
@@ -134,6 +135,7 @@ func (c *rpcCodec) Write(message *codec.Message, body interface{}) error {
 		} else {
 			// write to codec
 			if err := c.codec.Write(message, body); err != nil {
+				log.Errorf("code write failed %s", err.Error())
 				return exc.InternalServerError("go.micro.client.codec", err.Error())
 			}
 			// set body
@@ -149,7 +151,7 @@ func (c *rpcCodec) Write(message *codec.Message, body interface{}) error {
 
 	// send the request
 	if err := c.client.Send(&msg); err != nil {
-		return exc.InternalServerError("go.micro.client.transport", err.Error())
+		return exc.InternalServerError("go.micro.client.codec", err.Error())
 	}
 
 	return nil
@@ -159,7 +161,7 @@ func (c *rpcCodec) ReadHeader(msg *codec.Message, r codec.MessageType) error {
 	tm := new(transport.Message)
 	// read message from transport
 	if err := c.client.Recv(tm); err != nil {
-		return exc.InternalServerError("go.micro.client.transport", err.Error())
+		return exc.InternalServerError("go.micro.client", err.Error())
 	}
 
 	c.buf.rbuf.Reset()

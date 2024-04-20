@@ -8,8 +8,10 @@ import (
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
+	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -24,7 +26,7 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	g.wg.Add(1)
 	defer g.wg.Done()
 
-	msg := new(transport.Message)
+	msg := new(tp.Message)
 	if err := stream.RecvMsg(msg); err != nil {
 		return status.New(codes.InvalidArgument, "decode message failed").Err()
 	}
@@ -87,12 +89,11 @@ func (g *RPCServer) handler(srv interface{}, stream grpc.ServerStream) error {
 	//if handler.Metadata["req"] == "stream" {
 	//	return g.processStream(stream, handler, ctx)
 	//}
-
 	return g.processRequest(ctx, stream, handler, msg)
 }
 
 func (g *RPCServer) processRequest(ctx context.Context, stream grpc.ServerStream,
-	handler *Handler, msg *transport.Message) error {
+	handler *Handler, msg *tp.Message) error {
 
 	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Body)
 	if err != nil {
@@ -111,8 +112,26 @@ func (g *RPCServer) processRequest(ctx context.Context, stream grpc.ServerStream
 		if handler.Response == nil {
 			return
 		}
-		resp = results[0].Interface()
-		err = results[1].Interface().(error)
+		if e := results[1].Interface(); e != nil {
+			err = e.(error)
+			return
+		}
+		codec := encoding.GetCodec(msg.Header[micro.Accept])
+		if codec == nil {
+			log.Debugf("header %s", msg.Header)
+			err = exc.InternalServerError("go.micro.server",
+				"response codec '%s' not found", msg.Header[micro.Accept])
+			return nil, err
+		}
+		var buff []byte
+		buff, err = codec.Marshal(results[0].Interface())
+		if err != nil {
+			err = exc.InternalServerError("go.micro.server", "response marshal failed")
+			return
+		}
+		resp = &tp.Message{
+			Body: buff,
+		}
 		return
 	}
 

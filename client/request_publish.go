@@ -35,8 +35,8 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 
 	topic := registry.Topic(request.Service(), request.Version(), node)
 	headers := transport.CopyFromContext(ctx)
-	protocol := request.Protocols().Reqeust
-	headers[micro.ContentType] = protocol
+	protocol := request.Protocols()
+	headers[micro.ContentType] = protocol.Reqeust
 	headers[transport.Service] = request.Service()
 	headers[transport.Method] = request.Method()
 	headers[transport.Endpoint] = request.Endpoint()
@@ -51,7 +51,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	} else {
 		// passed in raw data
 		b := buf.New(nil)
-		if err := grpc.NewCodec(b, protocol, "").Write(&codec.Message{
+		if err := grpc.NewCodec(b, protocol.Reqeust, "").Write(&codec.Message{
 			//Service: service,
 			Type:   codec.Event,
 			Header: headers,

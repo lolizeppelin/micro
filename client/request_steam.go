@@ -29,12 +29,11 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	if opts.StreamTimeout > time.Duration(0) {
 		headers["Timeout"] = utils.UnsafeToString(opts.StreamTimeout / time.Second)
 	}
-	protocol := req.Protocols().Reqeust
-	accept := req.Protocols().Response
+	protocol := req.Protocols()
 	// set the content type for the request
-	headers[micro.ContentType] = protocol
+	headers[micro.ContentType] = protocol.Reqeust
 	// set the accept header
-	headers[micro.Accept] = accept
+	headers[micro.Accept] = protocol.Response
 	// set old codecs
 	c, err := r.opts.Transport.Dial(address, opts.DialTimeout)
 	if err != nil {
@@ -46,7 +45,7 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	id := fmt.Sprintf("%v", seq)
 
 	// create codec with stream id
-	codec := newRPCCodec(headers, c, protocol, accept, id)
+	codec := newRPCCodec(headers, c, protocol.Reqeust, protocol.Response, id)
 
 	rsp := &rpcResponse{
 		socket: c,

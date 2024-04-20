@@ -16,22 +16,22 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	address := node.Address
 
 	headers := transport.CopyFromContext(ctx)
-	protocol := req.Protocols().Reqeust
-	accept := req.Protocols().Response
-	headers[micro.ContentType] = protocol
+	protocol := req.Protocols()
+	headers[micro.ContentType] = protocol.Reqeust
+	headers[micro.Accept] = protocol.Response
 	headers[transport.Service] = req.Service()
 	headers[transport.Method] = req.Method()
 	headers[transport.Endpoint] = req.Endpoint()
 
 	// Set connection timeout for single requests to the server. Should be > 0
 	// as otherwise requests can't be made.
-	cTimeout := opts.ConnectionTimeout / time.Second
+	cTimeout := opts.ConnectionTimeout
 	if cTimeout == 0 {
 		log.Debugf("connection timeout was set to 0, overwrite to default connection timeout")
-		cTimeout = DefaultConnectionTimeout / time.Second
+		cTimeout = DefaultConnectionTimeout
 	}
 	// set timeout in nanoseconds
-	headers["Timeout"] = utils.UnsafeToString(cTimeout)
+	headers["Timeout"] = utils.UnsafeToString(cTimeout / time.Second)
 
 	c, err := r.pool.Get(address, opts.DialTimeout)
 	if err != nil {
@@ -39,7 +39,7 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	}
 
 	seq := atomic.AddUint64(&r.seq, 1) - 1
-	codec := newRPCCodec(headers, c, protocol, accept, "")
+	codec := newRPCCodec(headers, c, protocol.Reqeust, protocol.Response, "")
 
 	rsp := &rpcResponse{
 		socket: c,
@@ -80,7 +80,6 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 				ch <- exc.InternalServerError("go.micro.client", "panic recovered: %v", r)
 			}
 		}()
-
 		// send request
 		if err := stream.Send(req.Body()); err != nil {
 			ch <- err

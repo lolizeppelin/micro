@@ -33,8 +33,8 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 						// 返回与内部请求校验
 						if opts.Internal || !ep.Internal {
 							// 请求与返回协议校验
-							if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["res"]) ||
-								!micro.MatchCodec(protocols.Response, ep.Metadata["req"]) {
+							if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["req"]) ||
+								!micro.MatchCodec(protocols.Response, ep.Metadata["res"]) {
 								return nil, exc.BadRequest("go.micro.client.selector", "request or response type mismatch")
 							}
 							found = true

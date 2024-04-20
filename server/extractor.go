@@ -90,7 +90,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 	}
 	codec := encoding.GetCodec(protocol)
 	if codec == nil {
-		return nil, fmt.Errorf("content type codec not found")
+		return nil, fmt.Errorf("codec not found: '%s'", protocol)
 	}
 	arg := reflect.New(handler.Request.Elem())
 	if err := codec.Unmarshal(body, arg.Interface()); err != nil {

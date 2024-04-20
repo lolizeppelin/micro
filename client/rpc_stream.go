@@ -87,7 +87,6 @@ func (r *rpcStream) Recv(msg interface{}) error {
 	}
 
 	var resp codec.Message
-
 	r.Unlock()
 	err := r.codec.ReadHeader(&resp, codec.Response)
 	r.Lock()

@@ -78,7 +78,6 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 		if err != nil {
 			return exc.InternalServerError("go.micro.client", "backoff error: %v", err.Error())
 		}
-
 		// only sleep if greater than 0
 		if t.Seconds() > 0 {
 			time.Sleep(t)
@@ -137,11 +136,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 			if !retry {
 				return err
 			}
-			if err != nil {
-				log.Error(err.Error())
-			}
 			log.Debugf("Retrying request. Previous attempt failed with: %v", err)
-
 			gerr = err
 		}
 	}
