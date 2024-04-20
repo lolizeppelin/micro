@@ -92,8 +92,6 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 			return err
 		}
 
-		log.Debugf("find service %s", node.Id)
-
 		// make the call
 		err = rcall(ctx, node, request, response, callOpts)
 		r.opts.Selector.Mark(service, node, err)
