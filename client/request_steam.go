@@ -35,17 +35,15 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	// set the accept header
 	headers[micro.Accept] = protocol.Response
 	// set old codecs
-	c, err := r.opts.Transport.Dial(address, opts.DialTimeout)
+	c, err := r.opts.Transport.Dial(address, opts.DialTimeout, true)
 	if err != nil {
 		return nil, exc.InternalServerError("go.micro.client", "connection error: %v", err)
 	}
 
 	// increment the sequence number
 	seq := atomic.AddUint64(&r.seq, 1) - 1
-	id := fmt.Sprintf("%v", seq)
-
 	// create codec with stream id
-	codec := newRPCCodec(headers, c, protocol.Reqeust, protocol.Response, id)
+	codec := newRPCCodec(headers, c, protocol, false)
 
 	rsp := &rpcResponse{
 		socket: c,
@@ -64,7 +62,7 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	}
 
 	stream := &rpcStream{
-		id:       id,
+		id:       seq,
 		context:  ctx,
 		request:  req,
 		response: rsp,

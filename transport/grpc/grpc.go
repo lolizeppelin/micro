@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 	"github.com/lolizeppelin/micro/transport"
-	pb "github.com/lolizeppelin/micro/transport/grpc/proto"
+	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"time"
@@ -12,7 +12,7 @@ import (
 type grpcTransport struct {
 }
 
-func (t *grpcTransport) Dial(addr string, timeout time.Duration) (transport.Client, error) {
+func (t *grpcTransport) Dial(addr string, timeout time.Duration, stream bool) (transport.Client, error) {
 	if timeout <= 0 {
 		timeout = transport.DefaultDialTimeout
 	}
@@ -29,19 +29,25 @@ func (t *grpcTransport) Dial(addr string, timeout time.Duration) (transport.Clie
 		return nil, err
 	}
 
+	c := &grpcTransportClient{
+		conn:   conn,
+		local:  "localhost",
+		remote: addr,
+	}
+
 	// create stream
-	stream, err := pb.NewTransportClient(conn).Stream(context.Background())
-	if err != nil {
-		return nil, err
+	if stream {
+		var s tp.Transport_StreamClient
+		s, err = tp.NewTransportClient(conn).Stream(context.Background())
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+		c.stream = s
 	}
 
 	// return a client
-	return &grpcTransportClient{
-		conn:   conn,
-		stream: stream,
-		local:  "localhost",
-		remote: addr,
-	}, nil
+	return c, nil
 }
 
 func (t *grpcTransport) String() string {

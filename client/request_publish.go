@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/lolizeppelin/micro"
-	"github.com/lolizeppelin/micro/client/buf"
 	"github.com/lolizeppelin/micro/codec"
-	"github.com/lolizeppelin/micro/codec/grpc"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/registry"
 	"github.com/lolizeppelin/micro/transport"
@@ -45,21 +43,18 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 		Header: headers,
 	}
 
-	if payload, ok := request.Body().(*codec.Frame); ok {
+	body := request.Body()
+
+	if payload, ok := body.(*codec.Frame); ok {
 		// set body
 		msg.Body = payload.Data
 	} else {
-		// passed in raw data
-		b := buf.New(nil)
-		if err := grpc.NewCodec(b, protocol.Reqeust, "").Write(&codec.Message{
-			//Service: service,
-			Type:   codec.Event,
-			Header: headers,
-		}, request); err != nil {
+		b, err := codec.Marshal(protocol.Reqeust, body)
+		if err != nil {
 			return exc.InternalServerError(packageID, err.Error())
 		}
 		// set the body
-		msg.Body = b.Bytes()
+		msg.Body = b
 	}
 
 	l, ok := r.once.Load().(bool)

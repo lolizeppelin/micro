@@ -3,13 +3,13 @@ package grpc
 import (
 	"context"
 	"github.com/lolizeppelin/micro/transport"
-	pb "github.com/lolizeppelin/micro/transport/grpc/proto"
+	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"google.golang.org/grpc"
 )
 
 type grpcTransportClient struct {
 	conn   *grpc.ClientConn
-	stream pb.Transport_StreamClient
+	stream tp.Transport_StreamClient
 
 	local  string
 	remote string
@@ -43,25 +43,31 @@ func (g *grpcTransportClient) Send(m *transport.Message) error {
 		return nil
 	}
 
-	return g.stream.Send(&pb.Message{
+	return g.stream.Send(&tp.Message{
 		Header: m.Header,
 		Body:   m.Body,
 	})
 }
 
-func (g *grpcTransportClient) Close() error {
-	return g.conn.Close()
+func (g *grpcTransportClient) Call(m *transport.Message) (*transport.Message, error) {
+	if m == nil {
+		return nil, nil
+	}
+	result, err := tp.NewTransportClient(g.conn).Call(context.Background(), &tp.Message{
+		Header: m.Header,
+		Body:   m.Body,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &transport.Message{
+		Header: result.Header,
+		Body:   result.Body,
+	}, nil
+
 }
 
-func (g *grpcTransportClient) CloseSend() error {
-	err := g.stream.CloseSend()
-	if err != nil {
-		return nil
-	}
-	stream, err := pb.NewTransportClient(g.conn).Stream(context.Background())
-	if err != nil {
-		return err
-	}
-	g.stream = stream
-	return nil
+func (g *grpcTransportClient) Close() error {
+	return g.conn.Close()
 }

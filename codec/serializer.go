@@ -1,17 +1,46 @@
-package grpc
+package codec
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io"
 )
 
-var (
+const (
 	MaxMessageSize = 1024 * 1024 * 4 // 4Mb
 	maxInt         = int(^uint(0) >> 1)
 )
 
-func decode(r io.Reader) (uint8, []byte, error) {
+func Unmarshal(protocol string, buff []byte, b interface{}) error {
+	switch protocol {
+	case "application/grpc+json", "application/json":
+		return json.Unmarshal(buff, b)
+	case "application/grpc+proto", "application/grpc":
+		return proto.Unmarshal(buff, b.(proto.Message))
+	}
+	return fmt.Errorf("protocol '%s' not support for codec.Unmarshal", protocol)
+}
+
+func Marshal(protocol string, b interface{}) ([]byte, error) {
+	switch protocol {
+	case "application/grpc+json", "application/json":
+		return json.Marshal(b)
+	case "application/grpc+proto", "application/grpc":
+		pb, ok := b.(proto.Message)
+		if ok {
+			return proto.Marshal(pb)
+		}
+		return nil, fmt.Errorf("proto.Message requried for codec.Marshal")
+	}
+
+	return nil, fmt.Errorf("protocol '%s' not support for codec.Marshal", protocol)
+
+}
+
+// StreamRead 流式读
+func StreamRead(r io.Reader) (uint8, []byte, error) {
 	header := make([]byte, 5)
 
 	// read the header
@@ -51,7 +80,8 @@ func decode(r io.Reader) (uint8, []byte, error) {
 	return cf, msg, nil
 }
 
-func encode(cf uint8, buf []byte, w io.Writer) error {
+// StreamWrite 流式写
+func StreamWrite(cf uint8, buf []byte, w io.Writer) error {
 	header := make([]byte, 5)
 
 	// set compression

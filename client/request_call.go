@@ -39,7 +39,7 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	}
 
 	seq := atomic.AddUint64(&r.seq, 1) - 1
-	codec := newRPCCodec(headers, c, protocol.Reqeust, protocol.Response, "")
+	codec := newRPCCodec(headers, c, protocol, false)
 
 	rsp := &rpcResponse{
 		socket: c,
@@ -53,7 +53,7 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	}
 
 	stream := &rpcStream{
-		id:       fmt.Sprintf("%d", seq),
+		id:       seq,
 		context:  ctx,
 		request:  req,
 		response: rsp,

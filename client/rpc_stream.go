@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
+	"github.com/lolizeppelin/micro/utils"
 	"io"
 	"sync"
 )
@@ -21,7 +22,7 @@ type rpcStream struct {
 
 	// release releases the connection back to the pool
 	release func(err error)
-	id      string
+	id      uint64
 	sync.RWMutex
 	// Indicates whether connection should be closed directly.
 	close bool
@@ -61,7 +62,7 @@ func (r *rpcStream) Send(msg interface{}) error {
 	}
 
 	req := codec.Message{
-		Id:       r.id,
+		Id:       utils.UnsafeToString(r.id),
 		Service:  r.request.Service(),
 		Method:   r.request.Method(),
 		Endpoint: r.request.Endpoint(),
@@ -163,7 +164,7 @@ func (r *rpcStream) Close() error {
 			// no need to check for error
 			//nolint:errcheck,gosec
 			r.codec.Write(&codec.Message{
-				Id:       r.id,
+				Id:       utils.UnsafeToString(r.id),
 				Service:  r.request.Service(),
 				Method:   r.request.Method(),
 				Endpoint: r.request.Endpoint(),

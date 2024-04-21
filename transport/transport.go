@@ -11,7 +11,7 @@ const (
 // services. It uses connection based socket send/recv semantics and
 // has various implementations; http, grpc, quic.
 type Transport interface {
-	Dial(addr string, timeout time.Duration) (Client, error)
+	Dial(addr string, timeout time.Duration, stream bool) (Client, error)
 	String() string
 }
 
@@ -24,8 +24,8 @@ type Message struct {
 type Socket interface {
 	Recv(*Message) error
 	Send(*Message) error
+	Call(*Message) (*Message, error)
 	Close() error
-	CloseSend() error
 	Local() string
 	Remote() string
 }

@@ -92,7 +92,7 @@ func (p *Pool) Get(addr string, timeout time.Duration) (*Conn, error) {
 	p.Unlock()
 
 	// create new conn
-	c, err := p.tr.Dial(addr, timeout)
+	c, err := p.tr.Dial(addr, timeout, false)
 	if err != nil {
 		return nil, err
 	}
@@ -117,10 +117,6 @@ func (p *Pool) Release(conn *Conn, err error) error {
 	conns := p.conns[conn.Remote()]
 	if len(conns) >= p.size {
 		return conn.Client.Close()
-	} else {
-		if err = conn.Client.CloseSend(); err != nil {
-			return err
-		}
 	}
 	p.conns[conn.Remote()] = append(conns, conn)
 

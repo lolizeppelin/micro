@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
+	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"github.com/lolizeppelin/micro/utils"
 	"net"
 	"sync"
@@ -21,6 +22,8 @@ var (
 )
 
 type RPCServer struct {
+	tp.UnimplementedTransportServer
+
 	sync.RWMutex
 	wg   *sync.WaitGroup
 	exit chan chan error
@@ -49,11 +52,15 @@ func newGRPCServer(opts *options) *RPCServer {
 	_opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(opts.MaxMsgSize),
 		grpc.MaxSendMsgSize(opts.MaxMsgSize),
-		grpc.UnknownServiceHandler(srv.handler),
+		//grpc.UnknownServiceHandler(srv.handler),
+		grpc.ConnectionTimeout(10 * time.Second),
 	}
 
 	_opts = append(_opts, opts.GrpcOpts...)
 	srv.server = grpc.NewServer(_opts...)
+
+	tp.RegisterTransportServer(srv.server, srv)
+
 	return srv
 }
 
@@ -128,10 +135,8 @@ func (g *RPCServer) Start() error {
 		if err = g.Deregister(); err != nil {
 			log.Errorf("server deregister error: %s", err.Error())
 		}
-
 		// wait for waitgroup
 		g.wg.Wait()
-
 		// stop the grpc server
 		exit := make(chan bool)
 
@@ -167,6 +172,7 @@ func (g *RPCServer) Start() error {
 }
 
 func (g *RPCServer) Stop() error {
+
 	g.RLock()
 	if !g.started {
 		g.RUnlock()
@@ -185,7 +191,6 @@ func (g *RPCServer) Stop() error {
 		g.started = false
 		g.Unlock()
 	}
-
 	return err
 }
 
