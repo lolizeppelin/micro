@@ -14,6 +14,10 @@ const (
 	base      = 62
 )
 
+var (
+	baseBytesChars = []byte(baseChars)
+)
+
 func IntToString[T IntType](value T) string {
 	return strconv.Itoa(int(value))
 }

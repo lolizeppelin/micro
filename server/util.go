@@ -16,7 +16,7 @@ func SNBase62[T utils.IntType](id T) string {
 		sn = 1
 	}
 	if sn >= MaxServerSN {
-		sn = uint(MaxServerSN)
+		sn = MaxServerSN
 	}
 	sid := utils.ToBase62(sn)
 	return fmt.Sprintf("%0*s", 3, sid)

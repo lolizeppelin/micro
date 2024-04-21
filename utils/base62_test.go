@@ -19,6 +19,16 @@ func warp(key string, value *TestValue) func() {
 
 func TestB62(t *testing.T) {
 
+	fmt.Printf("~~~ %s, %d \n", ToBase62(1), 1)
+	fmt.Printf("~~~ %s, %d \n", ToBase62(20), 20)
+
+	value, err := FromBase62("001")
+	if err != nil {
+		fmt.Printf("from base 62 failed %s", err.Error())
+		return
+	}
+	fmt.Printf("~~~ %d, 001 \n", value)
+
 	m := map[string]TestValue{
 		"a": {value: 1},
 		"b": {value: 2},
