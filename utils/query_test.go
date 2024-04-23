@@ -7,9 +7,14 @@ import (
 
 func TestQuery(t *testing.T) {
 
-	s := BuildQuery(map[string]string{
-		"a": "=1",
-	})
-	fmt.Println(s)
+	m, err := ParseQuery("a=2&b=3&c0=4")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	for k, v := range m {
+		fmt.Printf(" key %s, value %s\n", k, v)
+	}
 
 }

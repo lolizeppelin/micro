@@ -63,3 +63,9 @@ func Sha1Hmac(value string, salt string) string {
 	h.Write([]byte(value))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
+
+func Md5Hmac(value string, salt string) string {
+	h := hmac.New(md5.New, []byte(salt))
+	h.Write([]byte(value))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"net/url"
 	"sort"
@@ -17,11 +18,8 @@ func (v queryValues) Query() string {
 	if v == nil {
 		return ""
 	}
-	var buf strings.Builder
-	keys := make([]string, 0, len(v))
-	for k := range v {
-		keys = append(keys, k)
-	}
+	buf := strings.Builder{}
+	keys := maps.Keys(v)
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
@@ -37,7 +35,7 @@ func (v queryValues) Query() string {
 	return buf.String()
 }
 
-func StripQuery(query string, skip ...string) (string, error) {
+func PopQuery(query string, skip ...string) (string, error) {
 	values, err := url.ParseQuery(query)
 	if err != nil {
 		return "", err
@@ -61,4 +59,16 @@ func BuildQuery(values map[string]string) string {
 		q.Add(k, v)
 	}
 	return q.Query()
+}
+
+func ParseQuery(query string) (values map[string]string, err error) {
+	m, err := url.ParseQuery(query)
+	if err != nil {
+		return
+	}
+	values = make(map[string]string)
+	for key, value := range m {
+		values[key] = value[0]
+	}
+	return
 }
