@@ -28,5 +28,6 @@ const (
 	// Stream header.
 	Stream = "Micro-Stream"
 	Query  = "Micro-Query" // url query
+	APP    = "Micro-App"   // app id
 
 )

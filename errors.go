@@ -11,7 +11,7 @@ var (
 	ErrServiceNotFound = errors.New("service not found")
 	ErrWatcherStopped  = errors.New("watcher stopped")
 
-	ErrSelectServiceNotFound  = errors.New("service not found")
+	ErrSelectServiceNotFound  = errors.New("no service found")
 	ErrSelectEndpointNotFound = errors.New("endpoint not found")
 	ErrNoneServiceAvailable   = errors.New("none available") // node not found
 )
