@@ -1,4 +1,4 @@
-package memory
+package loader
 
 import (
 	"bytes"
@@ -10,9 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lolizeppelin/micro/config/loader"
 	"github.com/lolizeppelin/micro/config/reader"
-	"github.com/lolizeppelin/micro/config/reader/json"
 	"github.com/lolizeppelin/micro/config/source"
 )
 
@@ -21,10 +19,10 @@ type memory struct {
 	vals reader.Values
 	exit chan bool
 	// the current snapshot
-	snap *loader.Snapshot
+	snap *Snapshot
 
 	watchers *list.List
-	opts     loader.Options
+	opts     Options
 
 	// all the sets
 	sets []*source.ChangeSet
@@ -76,7 +74,7 @@ func (m *memory) watch(idx int, s source.Source) {
 
 			// set values
 			m.vals, _ = m.opts.Reader.Values(set)
-			m.snap = &loader.Snapshot{
+			m.snap = &Snapshot{
 				ChangeSet: set,
 				Version:   genVer(),
 			}
@@ -149,7 +147,7 @@ func (m *memory) reload() error {
 	if vals, err := m.opts.Reader.Values(set); err != nil {
 		m.vals = vals
 	}
-	m.snap = &loader.Snapshot{
+	m.snap = &Snapshot{
 		ChangeSet: set,
 		Version:   genVer(),
 	}
@@ -192,10 +190,10 @@ func (m *memory) update() {
 }
 
 // Snapshot returns a snapshot of the current loaded config.
-func (m *memory) Snapshot() (*loader.Snapshot, error) {
+func (m *memory) Snapshot() (*Snapshot, error) {
 	if m.loaded() {
 		m.RLock()
-		snap := loader.Copy(m.snap)
+		snap := Copy(m.snap)
 		m.RUnlock()
 		return snap, nil
 	}
@@ -207,7 +205,7 @@ func (m *memory) Snapshot() (*loader.Snapshot, error) {
 
 	// make copy
 	m.RLock()
-	snap := loader.Copy(m.snap)
+	snap := Copy(m.snap)
 	m.RUnlock()
 
 	return snap, nil
@@ -246,7 +244,7 @@ func (m *memory) Sync() error {
 		return err
 	}
 	m.vals = vals
-	m.snap = &loader.Snapshot{
+	m.snap = &Snapshot{
 		ChangeSet: set,
 		Version:   genVer(),
 	}
@@ -345,7 +343,7 @@ func (m *memory) Load(sources ...source.Source) error {
 	return nil
 }
 
-func (m *memory) Watch(path ...string) (loader.Watcher, error) {
+func (m *memory) Watch(path ...string) (Watcher, error) {
 	if m.opts.WithWatcherDisabled {
 		return nil, errors.New("watcher is disabled")
 	}
@@ -384,8 +382,8 @@ func (m *memory) String() string {
 	return "memory"
 }
 
-func (w *watcher) Next() (*loader.Snapshot, error) {
-	update := func(v reader.Value) *loader.Snapshot {
+func (w *watcher) Next() (*Snapshot, error) {
+	update := func(v reader.Value) *Snapshot {
 		w.value = v
 
 		cs := &source.ChangeSet{
@@ -396,7 +394,7 @@ func (w *watcher) Next() (*loader.Snapshot, error) {
 		}
 		cs.Checksum = cs.Sum()
 
-		return &loader.Snapshot{
+		return &Snapshot{
 			ChangeSet: cs,
 			Version:   w.getVersion(),
 		}
@@ -440,9 +438,9 @@ func genVer() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-func NewLoader(opts ...loader.Option) loader.Loader {
-	options := loader.Options{
-		Reader: json.NewReader(),
+func NewLoader(opts ...Option) Loader {
+	options := Options{
+		Reader: reader.NewReader(),
 	}
 
 	for _, o := range opts {

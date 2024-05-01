@@ -1,4 +1,4 @@
-package json
+package reader
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	simple "github.com/bitly/go-simplejson"
-	"github.com/lolizeppelin/micro/config/reader"
 	"github.com/lolizeppelin/micro/config/source"
 )
 
@@ -21,16 +20,16 @@ type jsonValue struct {
 	*simple.Json
 }
 
-func newValues(ch *source.ChangeSet) (reader.Values, error) {
+func newValues(ch *source.ChangeSet) (Values, error) {
 	sj := simple.New()
-	data, _ := reader.ReplaceEnvVars(ch.Data)
+	data, _ := ReplaceEnvVars(ch.Data)
 	if err := sj.UnmarshalJSON(data); err != nil {
 		sj.SetPath(nil, string(ch.Data))
 	}
 	return &jsonValues{ch, sj}, nil
 }
 
-func (j *jsonValues) Get(path ...string) reader.Value {
+func (j *jsonValues) Get(path ...string) Value {
 	return &jsonValue{j.sj.GetPath(path...)}
 }
 

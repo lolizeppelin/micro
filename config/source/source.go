@@ -2,7 +2,9 @@
 package source
 
 import (
+	"crypto/md5"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -26,6 +28,12 @@ type ChangeSet struct {
 	Format    string
 	Source    string
 	Data      []byte
+}
+
+func (c *ChangeSet) Sum() string {
+	h := md5.New()
+	h.Write(c.Data)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // Watcher watches a source for changes.

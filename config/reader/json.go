@@ -1,4 +1,4 @@
-package json
+package reader
 
 import (
 	"errors"
@@ -6,13 +6,11 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/lolizeppelin/micro/config/encoder"
-	"github.com/lolizeppelin/micro/config/encoder/json"
-	"github.com/lolizeppelin/micro/config/reader"
 	"github.com/lolizeppelin/micro/config/source"
 )
 
 type jsonReader struct {
-	opts reader.Options
+	opts Options
 	json encoder.Encoder
 }
 
@@ -59,7 +57,7 @@ func (j *jsonReader) Merge(changes ...*source.ChangeSet) (*source.ChangeSet, err
 	return cs, nil
 }
 
-func (j *jsonReader) Values(ch *source.ChangeSet) (reader.Values, error) {
+func (j *jsonReader) Values(ch *source.ChangeSet) (Values, error) {
 	if ch == nil {
 		return nil, errors.New("changeset is nil")
 	}
@@ -74,10 +72,10 @@ func (j *jsonReader) String() string {
 }
 
 // NewReader creates a json reader.
-func NewReader(opts ...reader.Option) reader.Reader {
-	options := reader.NewOptions(opts...)
+func NewReader(opts ...Option) Reader {
+	options := NewOptions(opts...)
 	return &jsonReader{
-		json: json.NewEncoder(),
+		json: encoder.NewEncoder(),
 		opts: options,
 	}
 }

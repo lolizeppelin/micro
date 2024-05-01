@@ -1,11 +1,11 @@
-package etcd
+package source
 
 import (
 	"fmt"
+	"github.com/lolizeppelin/micro/log"
 	"strings"
 
-	"go-micro.dev/v4/config/encoder"
-	"go-micro.dev/v4/logger"
+	"github.com/lolizeppelin/micro/config/encoder"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -30,14 +30,14 @@ func makeEvMap(e encoder.Encoder, data map[string]interface{}, kv []*clientv3.Ev
 	return data, nil
 }
 
-func makeMap(e encoder.Encoder, kv []*mvccpb.KeyValue, stripPrefix string) (map[string]interface{}, error) {
+func makeMap(ec encoder.Encoder, kv []*mvccpb.KeyValue, stripPrefix string) (map[string]interface{}, error) {
 	data := make(map[string]interface{})
 	var err error
 	for _, v := range kv {
-		d, e := update(e, data, v, "put", stripPrefix)
+		d, e := update(ec, data, v, "put", stripPrefix)
 		if e != nil {
 			err = e
-			logger.Errorf("etcd makeMap err %v", e)
+			log.Errorf("etcd makeMap err %v", e)
 		} else {
 			data = d
 		}
@@ -45,7 +45,7 @@ func makeMap(e encoder.Encoder, kv []*mvccpb.KeyValue, stripPrefix string) (map[
 	return data, err
 }
 
-func update(e encoder.Encoder, data map[string]interface{}, v *mvccpb.KeyValue, action, stripPrefix string) (map[string]interface{}, error) {
+func update(ec encoder.Encoder, data map[string]interface{}, v *mvccpb.KeyValue, action, stripPrefix string) (map[string]interface{}, error) {
 	// remove prefix if non empty, and ensure leading / is removed as well
 	vkey := strings.TrimPrefix(strings.TrimPrefix(string(v.Key), stripPrefix), "/")
 	// split on prefix
@@ -53,7 +53,7 @@ func update(e encoder.Encoder, data map[string]interface{}, v *mvccpb.KeyValue, 
 	keys := strings.Split(vkey, "/")
 
 	var vals interface{}
-	err := e.Decode(v.Value, &vals)
+	err := ec.Decode(v.Value, &vals)
 	if "delete" != action && err != nil {
 		return data, fmt.Errorf("faild decode value. v.key: %s, error: %s", v.Key, err)
 	}

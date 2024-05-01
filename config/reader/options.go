@@ -2,7 +2,6 @@ package reader
 
 import (
 	"github.com/lolizeppelin/micro/config/encoder"
-	"github.com/lolizeppelin/micro/config/encoder/json"
 )
 
 type Options struct {
@@ -14,7 +13,7 @@ type Option func(o *Options)
 func NewOptions(opts ...Option) Options {
 	options := Options{
 		Encoding: map[string]encoder.Encoder{
-			"json": json.NewEncoder(),
+			"json": encoder.NewEncoder(),
 		},
 	}
 	for _, o := range opts {

@@ -1,36 +1,34 @@
-package etcd
+package source
 
 import (
 	"context"
 	"errors"
+	"github.com/lolizeppelin/micro/log"
 	"sync"
 	"time"
 
-	"go-micro.dev/v4/config/source"
 	clientv3 "go.etcd.io/etcd/client/v3"
-
-	"go-micro.dev/v4/logger"
 )
 
 type watcher struct {
-	opts        source.Options
+	opts        Options
 	name        string
 	stripPrefix string
 
 	sync.RWMutex
-	cs *source.ChangeSet
+	cs *ChangeSet
 
-	ch   chan *source.ChangeSet
+	ch   chan *ChangeSet
 	exit chan bool
 }
 
-func newWatcher(key, strip string, wc clientv3.Watcher, cs *source.ChangeSet, opts source.Options) (source.Watcher, error) {
+func newWatcher(key, strip string, wc clientv3.Watcher, cs *ChangeSet, opts Options) (Watcher, error) {
 	w := &watcher{
 		opts:        opts,
 		name:        "etcd",
 		stripPrefix: strip,
 		cs:          cs,
-		ch:          make(chan *source.ChangeSet),
+		ch:          make(chan *ChangeSet),
 		exit:        make(chan bool),
 	}
 
@@ -56,18 +54,18 @@ func (w *watcher) handle(evs []*clientv3.Event) {
 	// update base changeset
 	d, err := makeEvMap(w.opts.Encoder, vals, evs, w.stripPrefix)
 	if err != nil {
-		logger.Errorf("etcd watcher makeEvMap err %v", err)
+		log.Errorf("etcd watcher makeEvMap err %v", err)
 		return
 	}
 	// pack the changeset
 	b, err := w.opts.Encoder.Encode(d)
 	if err != nil {
-		logger.Errorf("etcd watcher Encode err %v", err)
+		log.Errorf("etcd watcher Encode err %v", err)
 		return
 	}
 
 	// create new changeset
-	cs := &source.ChangeSet{
+	cs := &ChangeSet{
 		Timestamp: time.Now(),
 		Source:    w.name,
 		Data:      b,
@@ -99,7 +97,7 @@ func (w *watcher) run(wc clientv3.Watcher, ch clientv3.WatchChan) {
 	}
 }
 
-func (w *watcher) Next() (*source.ChangeSet, error) {
+func (w *watcher) Next() (*ChangeSet, error) {
 	select {
 	case cs := <-w.ch:
 		return cs, nil

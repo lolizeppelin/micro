@@ -1,11 +1,10 @@
 // Package secretbox is a config/secrets implementation that uses nacl/secretbox
 // to do symmetric encryption / verification
-package secretbox
+package secrets
 
 import (
 	"crypto/rand"
 
-	"github.com/lolizeppelin/micro/config/secrets"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -13,13 +12,13 @@ import (
 const keyLength = 32
 
 type secretBox struct {
-	options secrets.Options
+	options Options
 
 	secretKey [keyLength]byte
 }
 
 // NewSecrets returns a secretbox codec.
-func NewSecrets(opts ...secrets.Option) secrets.Secrets {
+func NewSecretsBox(opts ...Option) Secrets {
 	sb := &secretBox{}
 	for _, o := range opts {
 		o(&sb.options)
@@ -27,7 +26,7 @@ func NewSecrets(opts ...secrets.Option) secrets.Secrets {
 	return sb
 }
 
-func (s *secretBox) Init(opts ...secrets.Option) error {
+func (s *secretBox) Init(opts ...Option) error {
 	for _, o := range opts {
 		o(&s.options)
 	}
@@ -41,7 +40,7 @@ func (s *secretBox) Init(opts ...secrets.Option) error {
 	return nil
 }
 
-func (s *secretBox) Options() secrets.Options {
+func (s *secretBox) Options() Options {
 	return s.options
 }
 
@@ -49,7 +48,7 @@ func (s *secretBox) String() string {
 	return "nacl-secretbox"
 }
 
-func (s *secretBox) Encrypt(in []byte, opts ...secrets.EncryptOption) ([]byte, error) {
+func (s *secretBox) Encrypt(in []byte, opts ...EncryptOption) ([]byte, error) {
 	// no opts are expected, so they are ignored
 
 	// there must be a unique nonce for each message
@@ -60,7 +59,7 @@ func (s *secretBox) Encrypt(in []byte, opts ...secrets.EncryptOption) ([]byte, e
 	return secretbox.Seal(nonce[:], in, &nonce, &s.secretKey), nil
 }
 
-func (s *secretBox) Decrypt(in []byte, opts ...secrets.DecryptOption) ([]byte, error) {
+func (s *secretBox) Decrypt(in []byte, opts ...DecryptOption) ([]byte, error) {
 	// no options are expected, so they are ignored
 
 	var decryptNonce [24]byte

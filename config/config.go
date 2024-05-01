@@ -2,9 +2,6 @@
 package config
 
 import (
-	"context"
-
-	"github.com/lolizeppelin/micro/config/loader"
 	"github.com/lolizeppelin/micro/config/reader"
 	"github.com/lolizeppelin/micro/config/source"
 )
@@ -33,20 +30,7 @@ type Watcher interface {
 	Stop() error
 }
 
-type Options struct {
-	Loader loader.Loader
-	Reader reader.Reader
-
-	// for alternative data
-	Context context.Context
-
-	Source []source.Source
-
-	WithWatcherDisabled bool
-}
-
-type Option func(o *Options)
-
+/*
 var (
 	// Default Config Manager.
 	DefaultConfig, _ = NewConfig()
@@ -93,3 +77,4 @@ func Watch(path ...string) (Watcher, error) {
 }
 
 // LoadFile is short hand for creating a file source and loading it.
+*/

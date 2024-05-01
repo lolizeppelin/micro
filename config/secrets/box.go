@@ -1,25 +1,22 @@
 // Package box is an asymmetric implementation of config/secrets using nacl/box
-package box
+package secrets
 
 import (
 	"crypto/rand"
 
-	"github.com/lolizeppelin/micro/config/secrets"
 	"github.com/pkg/errors"
 	naclbox "golang.org/x/crypto/nacl/box"
 )
 
-const keyLength = 32
-
 type box struct {
-	options secrets.Options
+	options Options
 
 	publicKey  [keyLength]byte
 	privateKey [keyLength]byte
 }
 
 // NewSecrets returns a nacl-box codec.
-func NewSecrets(opts ...secrets.Option) secrets.Secrets {
+func NewSecrets(opts ...Option) Secrets {
 	b := &box{}
 	for _, o := range opts {
 		o(&b.options)
@@ -27,7 +24,7 @@ func NewSecrets(opts ...secrets.Option) secrets.Secrets {
 	return b
 }
 
-func (b *box) Init(opts ...secrets.Option) error {
+func (b *box) Init(opts ...Option) error {
 	for _, o := range opts {
 		o(&b.options)
 	}
@@ -40,7 +37,7 @@ func (b *box) Init(opts ...secrets.Option) error {
 }
 
 // Options returns options.
-func (b *box) Options() secrets.Options {
+func (b *box) Options() Options {
 	return b.options
 }
 
@@ -50,8 +47,8 @@ func (*box) String() string {
 }
 
 // Encrypt encrypts a message with the sender's private key and the receipient's public key.
-func (b *box) Encrypt(in []byte, opts ...secrets.EncryptOption) ([]byte, error) {
-	var options secrets.EncryptOptions
+func (b *box) Encrypt(in []byte, opts ...EncryptOption) ([]byte, error) {
+	var options EncryptOptions
 	for _, o := range opts {
 		o(&options)
 	}
@@ -68,8 +65,8 @@ func (b *box) Encrypt(in []byte, opts ...secrets.EncryptOption) ([]byte, error) 
 }
 
 // Decrypt Decrypts a message with the receiver's private key and the sender's public key.
-func (b *box) Decrypt(in []byte, opts ...secrets.DecryptOption) ([]byte, error) {
-	var options secrets.DecryptOptions
+func (b *box) Decrypt(in []byte, opts ...DecryptOption) ([]byte, error) {
+	var options DecryptOptions
 	for _, o := range opts {
 		o(&options)
 	}

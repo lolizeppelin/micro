@@ -1,9 +1,7 @@
-package json
+package encoder
 
 import (
 	"encoding/json"
-
-	"github.com/lolizeppelin/micro/config/encoder"
 )
 
 type jsonEncoder struct{}
@@ -20,6 +18,6 @@ func (j jsonEncoder) String() string {
 	return "json"
 }
 
-func NewEncoder() encoder.Encoder {
+func NewEncoder() Encoder {
 	return jsonEncoder{}
 }

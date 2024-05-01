@@ -1,11 +1,9 @@
-package secretbox
+package secrets
 
 import (
 	"encoding/base64"
 	"reflect"
 	"testing"
-
-	"github.com/lolizeppelin/micro/config/secrets"
 )
 
 func TestSecretBox(t *testing.T) {
@@ -14,16 +12,16 @@ func TestSecretBox(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := NewSecrets()
+	s := NewSecretsBox()
 
 	if err := s.Init(); err == nil {
 		t.Error("Secretbox accepted an empty secret key")
 	}
-	if err := s.Init(secrets.Key([]byte("invalid"))); err == nil {
+	if err := s.Init(Key([]byte("invalid"))); err == nil {
 		t.Error("Secretbox accepted a secret key that is invalid")
 	}
 
-	if err := s.Init(secrets.Key(secretKey)); err != nil {
+	if err := s.Init(Key(secretKey)); err != nil {
 		t.Fatal(err)
 	}
 

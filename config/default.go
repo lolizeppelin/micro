@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/lolizeppelin/micro/config/loader"
-	"github.com/lolizeppelin/micro/config/loader/memory"
 	"github.com/lolizeppelin/micro/config/reader"
-	"github.com/lolizeppelin/micro/config/reader/json"
 	"github.com/lolizeppelin/micro/config/source"
 )
 
@@ -46,7 +44,7 @@ func newConfig(opts ...Option) (Config, error) {
 
 func (c *config) Init(opts ...Option) error {
 	c.opts = Options{
-		Reader: json.NewReader(),
+		Reader: reader.NewReader(),
 	}
 	c.exit = make(chan bool)
 	for _, o := range opts {
@@ -55,12 +53,12 @@ func (c *config) Init(opts ...Option) error {
 
 	// default loader uses the configured reader
 	if c.opts.Loader == nil {
-		loaderOpts := []loader.Option{memory.WithReader(c.opts.Reader)}
+		loaderOpts := []loader.Option{loader.WithReader(c.opts.Reader)}
 		if c.opts.WithWatcherDisabled {
-			loaderOpts = append(loaderOpts, memory.WithWatcherDisabled())
+			loaderOpts = append(loaderOpts, loader.WithWatcherDisabled())
 		}
 
-		c.opts.Loader = memory.NewLoader(loaderOpts...)
+		c.opts.Loader = loader.NewLoader(loaderOpts...)
 	}
 
 	err := c.opts.Loader.Load(c.opts.Source...)
