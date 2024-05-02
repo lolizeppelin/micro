@@ -1,49 +1,65 @@
 package config
 
 import (
-	"context"
-	"github.com/lolizeppelin/micro/config/loader"
-	"github.com/lolizeppelin/micro/config/reader"
-	"github.com/lolizeppelin/micro/config/source"
+	"time"
 )
 
-// WithLoader sets the loader for manager config.
-func WithLoader(l loader.Loader) Option {
-	return func(o *Options) {
-		o.Loader = l
-	}
-}
+const (
+	DefaultPrefix = "/micro/config/"
+)
 
-// WithSource appends a source to list of sources.
-func WithSource(s source.Source) Option {
-	return func(o *Options) {
-		o.Source = append(o.Source, s)
-	}
-}
-
-// WithReader sets the config reader.
-func WithReader(r reader.Reader) Option {
-	return func(o *Options) {
-		o.Reader = r
-	}
-}
-
-func WithWatcherDisabled() Option {
-	return func(o *Options) {
-		o.WithWatcherDisabled = true
-	}
+type AuthCreds struct {
+	Username string
+	Password string
 }
 
 type Options struct {
-	Loader loader.Loader
-	Reader reader.Reader
-
-	// for alternative data
-	Context context.Context
-
-	Source []source.Source
-
-	WithWatcherDisabled bool
+	Prefix    string
+	Address   []string
+	AuthCreds *AuthCreds
+	Timeout   time.Duration
 }
 
 type Option func(o *Options)
+
+func NewOptions(opts ...Option) Options {
+	options := Options{
+		Timeout: time.Second * 3,
+		Prefix:  DefaultPrefix,
+	}
+
+	for _, o := range opts {
+		o(&options)
+	}
+
+	return options
+}
+
+// WithEncoder sets the source encoder.
+
+func WithAddress(a ...string) Option {
+	return func(o *Options) {
+		o.Address = a
+	}
+}
+
+// WithPrefix sets the key prefix to use.
+func WithPrefix(p string) Option {
+	return func(o *Options) {
+		o.Prefix = p
+	}
+}
+
+// Auth allows you to specify username/password.
+func WithAuth(username, password string) Option {
+	return func(o *Options) {
+		o.AuthCreds = &AuthCreds{Username: username, Password: password}
+	}
+}
+
+// WithDialTimeout set the time out for dialing to etcd.
+func WithDialTimeout(seconds time.Duration) Option {
+	return func(o *Options) {
+		o.Timeout = seconds * time.Second
+	}
+}
