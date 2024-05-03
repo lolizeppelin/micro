@@ -17,16 +17,16 @@ type watcher struct {
 	key     string
 	ch      clientv3.WatchChan
 	exit    chan bool
-	handler func([]*clientv3.Event, error)
+	handler func(string, []*clientv3.Event, error)
 }
 
-func newWatcher(ec *EtcdConfig, key string, handler func([]*clientv3.Event, error)) {
+func newWatcher(ec *EtcdConfig, key string, handler func(string, []*clientv3.Event, error)) {
 	watchers := ec.watchers
 
 	watchers.Lock()
 	defer watchers.Unlock()
 	if watchers.stopped {
-		handler(nil, micro.ErrWatcherStopped)
+		handler(key, nil, micro.ErrWatcherStopped)
 		return
 	}
 	wc, ok := watchers.watchers[key]
@@ -53,9 +53,9 @@ func (w *watcher) run() {
 				close(w.exit)
 				continue
 			}
-			w.handler(rsp.Events, nil)
+			w.handler(w.key, rsp.Events, nil)
 		case <-w.exit:
-			w.handler(nil, micro.ErrWatcherStopped)
+			w.handler("", nil, micro.ErrWatcherStopped)
 			return
 		}
 	}

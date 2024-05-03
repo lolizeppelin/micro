@@ -2,16 +2,12 @@ package registry
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
-	"go.uber.org/zap"
-
 	"golang.org/x/exp/maps"
-	"net"
 	"path"
 	"sort"
 	"strings"
@@ -38,69 +34,25 @@ type etcdRegistry struct {
 }
 
 func NewEtcdRegistry(opts ...Option) (micro.Registry, error) {
+	options := Options{
+		Timeout: 5 * time.Second,
+	}
+
+	for _, o := range opts {
+		o(&options)
+	}
+
+	if options.Client == nil {
+		return nil, fmt.Errorf("etcd v3 client not found")
+	}
+
 	e := &etcdRegistry{
-		options:  Options{},
+		options:  options,
 		register: make(map[string]uint64),
 		leases:   make(map[string]clientV3.LeaseID),
-	}
-	err := configure(e, opts...)
-	if err != nil {
-		return nil, err
+		client:   options.Client,
 	}
 	return e, nil
-}
-
-func configure(e *etcdRegistry, opts ...Option) error {
-
-	config := clientV3.Config{
-		Endpoints: []string{"127.0.0.1:2379"},
-		Logger:    zap.NewNop(),
-	}
-	for _, o := range opts {
-		o(&e.options)
-	}
-	if e.options.Timeout == 0 {
-		e.options.Timeout = 5 * time.Second
-	}
-	config.DialTimeout = e.options.Timeout
-
-	if e.options.TLSConfig != nil {
-		tlsConfig := e.options.TLSConfig
-		if tlsConfig == nil {
-			tlsConfig = &tls.Config{
-				InsecureSkipVerify: true,
-			}
-		}
-		config.TLS = tlsConfig
-	}
-
-	var cAddress []string
-
-	for _, address := range e.options.Address {
-		if len(address) == 0 {
-			continue
-		}
-		addr, port, err := net.SplitHostPort(address)
-		var ae *net.AddrError
-		if errors.As(err, &ae) && ae.Err == "missing port in address" {
-			port = "2379"
-			addr = address
-			cAddress = append(cAddress, net.JoinHostPort(addr, port))
-		}
-	}
-
-	if len(cAddress) > 0 {
-		config.Endpoints = cAddress
-	}
-
-	cli, err := clientV3.New(config)
-	if err != nil {
-		return err
-	}
-	//cli.Get()
-
-	e.client = cli
-	return nil
 }
 
 func encode(s *micro.Service) string {
