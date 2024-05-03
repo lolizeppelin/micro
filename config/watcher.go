@@ -7,6 +7,13 @@ import (
 	"sync"
 )
 
+func newMap() *wMap {
+	return &wMap{
+		stopped:  false,
+		watchers: map[string]*watcher{},
+	}
+}
+
 type wMap struct {
 	sync.Mutex
 	stopped  bool
@@ -50,12 +57,11 @@ func (w *watcher) run() {
 		select {
 		case rsp, ok := <-w.ch:
 			if !ok {
-				close(w.exit)
-				continue
+				return
 			}
 			w.handler(w.key, rsp.Events, nil)
 		case <-w.exit:
-			w.handler("", nil, micro.ErrWatcherStopped)
+			w.handler(w.key, nil, micro.ErrWatcherStopped)
 			return
 		}
 	}

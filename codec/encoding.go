@@ -63,6 +63,9 @@ func (bytesCodec) Marshal(v interface{}) ([]byte, error) {
 }
 
 func (bytesCodec) Unmarshal(data []byte, v interface{}) error {
+	if data == nil {
+		return nil
+	}
 	b, ok := v.([]byte)
 	if !ok {
 		return ErrInvalidMessage

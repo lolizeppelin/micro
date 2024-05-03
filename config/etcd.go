@@ -30,8 +30,9 @@ func NewEtcdConfig(client *clientv3.Client, prefix ...string) (*EtcdConfig, erro
 	return &EtcdConfig{
 		prefix: p,
 		//client:  client,
-		kv:      c,
-		watcher: w,
+		kv:       c,
+		watcher:  w,
+		watchers: newMap(),
 	}, nil
 
 }

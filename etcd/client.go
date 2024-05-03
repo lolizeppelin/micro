@@ -1,8 +1,11 @@
 package etcd
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"github.com/lolizeppelin/micro/log"
 	clientV3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"net"
@@ -58,6 +61,18 @@ func NewEtcdClient(opts ...Option) (*clientV3.Client, error) {
 		cfg.Endpoints = cAddress
 	}
 
-	return clientV3.New(cfg)
+	c, err := clientV3.New(cfg)
+	if err != nil {
+		return nil, err
+	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
+	defer cancel()
+	_, err = c.Status(ctx, cfg.Endpoints[0])
+	if err != nil {
+		c.Close()
+		return nil, fmt.Errorf("connect etcd failed")
+	}
+	log.Info("etcd connected")
+	return c, err
 }
