@@ -5,6 +5,7 @@ import (
 	"github.com/lolizeppelin/micro"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"strings"
 )
 
 const (
@@ -20,8 +21,11 @@ type EtcdConfig struct {
 
 func NewEtcdConfig(client *clientv3.Client, prefix ...string) (*EtcdConfig, error) {
 	p := DefaultPrefix
-	if len(prefix) > 0 {
+	if len(prefix) > 0 && prefix[0] != "" {
 		p = prefix[0]
+	}
+	if !strings.HasSuffix(p, "/") {
+		p = p + "/"
 	}
 
 	c := clientv3.NewKV(client)

@@ -110,3 +110,11 @@ func IsSafeUnixLikePath(path string) bool {
 
 	return true
 }
+
+func ReadFile(path string) ([]byte, error) {
+	ok, _ := PathIsRegularFile(path)
+	if !ok {
+		return nil, errors.New("path is not regular file")
+	}
+	return os.ReadFile(path)
+}
