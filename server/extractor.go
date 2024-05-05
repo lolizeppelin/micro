@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/errors"
+	"github.com/lolizeppelin/micro/utils"
+	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/grpc/encoding"
 	"reflect"
 	"strings"
@@ -74,13 +77,14 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Internal bool
-	Name     string            // method name
-	Receiver reflect.Value     // receiver of method
-	Method   reflect.Method    // method stub
-	Request  reflect.Type      // 请求参数
-	Response reflect.Type      // 返回参数
-	Metadata map[string]string // 元数据
+	Internal  bool
+	Name      string               // method name
+	Receiver  reflect.Value        // receiver of method
+	Method    reflect.Method       // method stub
+	Request   reflect.Type         // 请求参数
+	Validator *gojsonschema.Schema // 请求参数校验器
+	Response  reflect.Type         // 返回参数
+	Metadata  map[string]string    // 元数据
 }
 
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []byte) ([]reflect.Value, error) {
@@ -90,7 +94,21 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 	}
 	codec := encoding.GetCodec(protocol)
 	if codec == nil {
-		return nil, fmt.Errorf("codec not found: '%s'", protocol)
+		return nil, errors.BadRequest("micro.server", "codec not found: '%s'", protocol)
+	}
+
+	if handler.Validator != nil {
+		result, err := handler.Validator.Validate(gojsonschema.NewBytesLoader(body))
+		if err != nil {
+			return nil, err
+		}
+		if !result.Valid() {
+			msg := fmt.Sprintf("Validate request body failed")
+			for _, desc := range result.Errors() {
+				msg = fmt.Sprintf("%s %s", msg, desc)
+			}
+			return nil, errors.BadRequest("micro.server", msg)
+		}
 	}
 
 	var arg reflect.Value
@@ -100,7 +118,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 		arg = reflect.New(handler.Request.Elem())
 	}
 	if err := codec.Unmarshal(body, arg.Interface()); err != nil {
-		return nil, err
+		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 	args = append(args, arg)
 	return args, nil
@@ -171,6 +189,11 @@ func extractComponent(component micro.Component) map[string]*Handler {
 					panic("no support stream rpc")
 					//metadata["req"] = "stream"
 				} else {
+					// 生成Validator
+					buff, _ := utils.BuildJsonSchema(handler.Request)
+					loader := gojsonschema.NewBytesLoader(buff)
+					validator, _ := gojsonschema.NewSchema(loader)
+					handler.Validator = validator
 					metadata["req"] = "json"
 				}
 			}
