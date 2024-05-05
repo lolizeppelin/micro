@@ -79,6 +79,7 @@ func ServiceMethod(m string) (string, string, error) {
 type Handler struct {
 	Internal  bool
 	Name      string               // method name
+	Rtype     reflect.Type         // 结构体
 	Receiver  reflect.Value        // receiver of method
 	Method    reflect.Method       // method stub
 	Request   reflect.Type         // 请求参数
@@ -168,6 +169,8 @@ func isHandlerMethod(method reflect.Method) bool {
 func extractComponent(component micro.Component) map[string]*Handler {
 	typ := reflect.TypeOf(component)
 	methods := make(map[string]*Handler)
+	rtype := typ.Elem()
+
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
 		mt := method.Type
@@ -177,6 +180,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 			handler := &Handler{
 				Name:   name,
 				Method: method,
+				Rtype:  rtype,
 			}
 			if mt.NumIn() == 3 {
 				handler.Request = mt.In(2)
