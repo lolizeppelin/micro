@@ -26,7 +26,7 @@ func GetComment(method reflect.Method) (string, error) {
 				for _, decl := range astFile.Decls {
 					if astFunc, ok := decl.(*ast.FuncDecl); ok {
 						if astFunc.Name.String() == name {
-							ret = strings.ReplaceAll(astFunc.Doc.Text(), "\n", "")
+							ret = strings.ReplaceAll(astFunc.Doc.Text(), "\n", " ")
 							return false
 						}
 					}

@@ -11,6 +11,10 @@ func Monotonic() time.Duration { // 单调递增时间
 	return time.Now().Sub(_start)
 }
 
+func NowUnix() int64 {
+	return time.Now().Unix()
+}
+
 func BackoffDelay(attempts int) time.Duration {
 	if attempts > 13 {
 		return 2 * time.Minute
