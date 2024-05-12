@@ -21,7 +21,8 @@ var (
 )
 
 const (
-	HeaderNode  = "X-Node-Id" // 限定 node
+	HeaderNode  = "X-Node-Id"    // 限定 node
+	TokenHeader = "X-Auth-Token" // 认证头
 	ContentType = "Content-Type"
 	Accept      = "Accept"
 )

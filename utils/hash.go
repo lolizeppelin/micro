@@ -40,6 +40,22 @@ func DJB33(seed uint32, k string) uint32 {
 	return d ^ (d >> 16)
 }
 
+func HashString(mode string, value string, salt string) string {
+	switch mode {
+	case "md5":
+		return MD5Sum(value, salt)
+	case "sha1":
+		return Sha1Sum(value, salt)
+	case "sha1hmac":
+		return Sha1Hmac(value, salt)
+	case "sha256":
+		return Sha256Hash(value, salt)
+	default:
+		return ""
+	}
+
+}
+
 func Sha256Hash(value string, salt string) string {
 	b := sha256.Sum256([]byte(value))
 	b = sha256.Sum256([]byte(hex.EncodeToString(b[:]) + salt))

@@ -118,7 +118,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	}
 
 	var args []reflect.Value
-	args, err = handler.BuildArgs(ctx, request.Header[micro.ContentType], request.Body)
+	args, err = handler.BuildArgs(_ctx, request.Header[micro.ContentType], request.Body)
 	if err != nil {
 		return err
 	}
