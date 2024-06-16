@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/schema"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/grpc/encoding"
+	"net/url"
 	"reflect"
 	"strings"
 	"unicode"
@@ -20,7 +22,13 @@ var (
 	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
+	decoder        = schema.NewDecoder()
 )
+
+func init() {
+	decoder.SetAliasTag("json")
+	decoder.IgnoreUnknownKeys(true)
+}
 
 func isExported(name string) bool {
 	r, _ := utf8.DecodeRuneInString(name)
@@ -82,14 +90,27 @@ type Handler struct {
 	Rtype     reflect.Type         // 结构体
 	Receiver  reflect.Value        // receiver of method
 	Method    reflect.Method       // method stub
+	Query     reflect.Type         // 请求url query pram参数校验器
 	Request   reflect.Type         // 请求参数
 	Validator *gojsonschema.Schema // 请求参数校验器
 	Response  reflect.Type         // 返回参数
 	Metadata  map[string]string    // 元数据
 }
 
-func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []byte) ([]reflect.Value, error) {
+func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
 	args := []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}
+
+	if handler.Query == nil {
+		return args, nil
+	}
+
+	// validator query parameters
+	arg := reflect.New(handler.Request.Elem())
+	if err := decoder.Decode(arg.Interface(), query); err != nil {
+		return nil, errors.BadRequest("micro.server", "Validate request query failed")
+	}
+	args = append(args, arg)
+
 	if handler.Request == nil {
 		return args, nil
 	}
@@ -112,7 +133,6 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, body []b
 		}
 	}
 
-	var arg reflect.Value
 	if handler.Request == typeOfBytes {
 		arg = reflect.Zero(handler.Request)
 	} else {
@@ -137,25 +157,33 @@ func isHandlerMethod(method reflect.Method) bool {
 	if method.PkgPath != "" {
 		return false
 	}
-	// 参数必须是2个或3个
-	if mt.NumIn() != 2 && mt.NumIn() != 3 {
+
+	// 入参数个数 2 3 4
+	if mt.NumIn() < 2 || mt.NumIn() > 4 {
 		return false
 	}
+
 	// 返回参数必须是0个或者2个
 	if mt.NumOut() != 0 && mt.NumOut() != 2 {
 		return false
 	}
+
 	// 第一个参数必须是context(0号参数是实例本身)
 	if t1 := mt.In(1); !t1.Implements(typeOfContext) {
 		return false
 	}
-	// 第二个参数必须是指针类型或者bytes或者函数
-	if mt.NumIn() == 3 && mt.In(2).Kind() != reflect.Ptr && mt.In(2).Kind() != reflect.Func && mt.In(2) != typeOfBytes {
+	// 第二个参数必须是指针类型
+	if mt.NumIn() >= 3 && mt.In(2).Kind() != reflect.Ptr {
 		return false
 	}
+	// 第三个参数必须是指针类型或者bytes或者函数
+	if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func && mt.In(3) != typeOfBytes {
+		return false
+	}
+
 	if mt.NumOut() == 2 {
 		// 流式传输不允许返回值
-		if mt.NumIn() == 3 && mt.In(2).Kind() == reflect.Func {
+		if mt.NumIn() == 4 && mt.In(3).Kind() == reflect.Func {
 			return false
 		}
 		// 返回参数必须是 prt/bytes, error结构
@@ -183,7 +211,10 @@ func extractComponent(component micro.Component) map[string]*Handler {
 				Rtype:  rtype,
 			}
 			if mt.NumIn() == 3 {
-				handler.Request = mt.In(2)
+				handler.Query = mt.In(2)
+			}
+			if mt.NumIn() == 4 {
+				handler.Request = mt.In(3)
 				if handler.Request == typeOfBytes {
 					metadata["req"] = "bytes"
 				} else if handler.Request.Implements(typeOfProtoMsg) {
@@ -226,7 +257,6 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Hand
 		if !isExported(name) {
 			continue
 		}
-
 		methods := extractComponent(c)
 		for method, handler := range methods {
 			handler.Receiver = value

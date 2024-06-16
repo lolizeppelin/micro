@@ -3,18 +3,14 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/codec"
 	"sync/atomic"
 	"time"
 
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
-)
-
-const (
-	packageID = "go.micro.client"
 )
 
 type rpcClient struct {
@@ -27,7 +23,16 @@ type rpcClient struct {
 
 // next returns an iterator for the next nodes to call.
 
-func (r *rpcClient) Call(ctx context.Context, request micro.Request, response interface{}, opts ...CallOption) error {
+func (r *rpcClient) RPC(ctx context.Context, request micro.Request, response *micro.Response, opts ...CallOption) error {
+	msg, err := r.Call(ctx, request, opts...)
+	if err != nil {
+		return err
+	}
+	response.Headers = msg.Header
+	return codec.Unmarshal(request.Protocols().Response, msg.Body, response)
+}
+
+func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...CallOption) (*transport.Message, error) {
 
 	// make a copy of call opts
 	callOpts := r.opts.CallOptions
@@ -37,7 +42,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 
 	next, err := r.next(request, callOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// check if we already have a deadline
@@ -58,7 +63,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 	// should we noop right here?
 	select {
 	case <-ctx.Done():
-		return exc.Timeout("go.micro.client", fmt.Sprintf("%v", ctx.Err()))
+		return nil, exc.Timeout("micro.client.call", fmt.Sprintf("%v", ctx.Err()))
 	default:
 	}
 
@@ -69,6 +74,8 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 	for i := len(callOpts.CallWrappers); i > 0; i-- {
 		rcall = callOpts.CallWrappers[i-1](rcall)
 	}
+
+	var res *transport.Message
 
 	// return errors.New("go.micro.client", "request timeout", 408)
 	call := func(i int) error {
@@ -93,7 +100,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 		}
 
 		// make the call
-		err = rcall(ctx, node, request, response, callOpts)
+		res, err = rcall(ctx, node, request, callOpts)
 		r.opts.Selector.Mark(service, node, err)
 
 		return err
@@ -102,15 +109,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 	// get the retries
 	retries := callOpts.Retries
 
-	// disable retries when using a proxy
-	// Note: I don't see why we should disable retries for proxies, so commenting out.
-	// if _, _, ok := net.Proxy(request.Service(), callOpts.Address); ok {
-	// 	retries = 0
-	// }
-
 	ch := make(chan error, retries+1)
-
-	var gerr error
 
 	for i := 0; i <= retries; i++ {
 		go func(i int) {
@@ -119,27 +118,26 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, response in
 
 		select {
 		case <-ctx.Done():
-			return exc.Timeout("go.micro.client", fmt.Sprintf("call timeout: %v", ctx.Err()))
+			return nil, exc.Timeout("go.micro.client", fmt.Sprintf("call timeout: %v", ctx.Err()))
 		case err = <-ch:
 			// if the call succeeded lets bail early
 			if err == nil {
-				return nil
+				return res, nil
 			}
 
-			retry, rerr := callOpts.Retry(ctx, request, i, err)
-			if rerr != nil {
-				return rerr
+			retry, rErr := callOpts.Retry(ctx, request, i, err)
+			if rErr != nil {
+				return nil, rErr
 			}
 
 			if !retry {
-				return err
+				return nil, err
 			}
 			log.Debugf("Retrying request. Previous attempt failed with: %v", err)
-			gerr = err
 		}
 	}
 
-	return gerr
+	return nil, err
 }
 
 func (r *rpcClient) Publish(ctx context.Context, request micro.Request, opts ...CallOption) error {
@@ -149,7 +147,8 @@ func (r *rpcClient) Publish(ctx context.Context, request micro.Request, opts ...
 	if r.opts.Broker != nil {
 		return r.publish(ctx, request, opts...)
 	}
-	return r.Call(ctx, request, new(empty.Empty), opts...)
+	_, err := r.Call(ctx, request, opts...)
+	return err
 }
 
 func (r *rpcClient) Stream(ctx context.Context, request micro.Request, opts ...CallOption) (micro.Stream, error) {

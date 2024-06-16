@@ -1,10 +1,14 @@
 // Package transport is an interface for synchronous connection based communication
 package transport
 
-import "time"
+import (
+	"context"
+	"net/url"
+	"time"
+)
 
 const (
-	DefaultDialTimeout = time.Second * 5
+	DefaultDialTimeout = time.Second * 3
 )
 
 // Transport is an interface which is used for communication between
@@ -18,13 +22,14 @@ type Transport interface {
 // Message is a broker message.
 type Message struct {
 	Header map[string]string
+	Query  url.Values
 	Body   []byte
 }
 
 type Socket interface {
 	Recv(*Message) error
 	Send(*Message) error
-	Call(*Message) (*Message, error)
+	Call(context.Context, *Message) (*Message, error)
 	Close() error
 	Local() string
 	Remote() string

@@ -5,12 +5,14 @@ option go_package = './';
 //package proto;
 
 service Transport {
-	rpc Stream(stream Message) returns (stream Message) {}
-	rpc Call(Message) returns (Message) {}
+  rpc Stream(stream Message) returns (stream Message) {}
+  rpc Call(Message) returns (Message) {}
 
 }
 
+
 message Message {
-	map<string, string> header = 1;
-	bytes body = 2;
+  map<string, string> header = 1;
+  string query = 2;
+  bytes body = 3;
 }

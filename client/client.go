@@ -8,13 +8,15 @@ import (
 	"github.com/lolizeppelin/micro/selector"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/lolizeppelin/micro/transport/grpc"
+	"net/url"
 )
 
 // Client is the interface used to make requests to services.
 // It supports Request/Response via Transport and Publishing via the Broker.
 // It also supports bidirectional streaming of requests.
 type Client interface {
-	Call(ctx context.Context, req micro.Request, rsp interface{}, opts ...CallOption) error
+	Call(ctx context.Context, req micro.Request, opts ...CallOption) (*transport.Message, error)
+	RPC(ctx context.Context, req micro.Request, res *micro.Response, opts ...CallOption) error
 	Stream(ctx context.Context, req micro.Request, opts ...CallOption) (micro.Stream, error)
 	Publish(ctx context.Context, req micro.Request, opts ...CallOption) error
 }
@@ -67,14 +69,53 @@ func NewClient(opt ...Option) (Client, error) {
 	return c, nil
 }
 
-func NewRequest(target micro.Target, protocols *micro.Protocols, request interface{}) micro.Request {
+func NewRequest(target micro.Target, request interface{}) micro.Request {
 
 	return &rpcRequest{
 		service:   target.Service,
 		method:    target.Method,
 		endpoint:  target.Endpoint,
-		body:      request,
-		protocols: protocols,
+		query:     target.Query,
+		protocols: target.Protocols,
 		version:   target.Version,
+		body:      request,
 	}
+}
+
+type rpcRequest struct {
+	query     url.Values
+	body      interface{}
+	service   string
+	method    string
+	endpoint  string
+	protocols *micro.Protocols
+	version   *micro.Version
+}
+
+func (r *rpcRequest) Protocols() *micro.Protocols {
+	return r.protocols
+}
+
+func (r *rpcRequest) Query() url.Values {
+	return r.query
+}
+
+func (r *rpcRequest) Service() string {
+	return r.service
+}
+
+func (r *rpcRequest) Method() string {
+	return r.method
+}
+
+func (r *rpcRequest) Endpoint() string {
+	return r.endpoint
+}
+
+func (r *rpcRequest) Body() interface{} {
+	return r.body
+}
+
+func (r *rpcRequest) Version() *micro.Version {
+	return r.version
 }

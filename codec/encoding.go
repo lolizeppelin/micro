@@ -2,8 +2,13 @@ package codec
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/encoding"
+)
+
+var (
+	ErrInvalidMessage = errors.New("invalid message")
 )
 
 func init() {

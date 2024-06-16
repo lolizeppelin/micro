@@ -2,6 +2,7 @@ package errors
 
 import (
 	"context"
+	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
@@ -9,14 +10,10 @@ import (
 	"os"
 )
 
-func ClientError(err error) error {
-	// no error
-	switch err {
-	case nil:
-		return nil
-	}
+func ClientError(id string, err error) error {
 
-	if verr, ok := err.(*Error); ok {
+	var verr *Error
+	if errors.As(err, &verr) {
 		return verr
 	}
 
@@ -28,7 +25,7 @@ func ClientError(err error) error {
 
 	// return first error from details
 	if details := s.Details(); len(details) > 0 {
-		return ClientError(details[0].(error))
+		return ClientError(id, details[0].(error))
 	}
 
 	// try to decode micro *errors.Error
@@ -37,7 +34,7 @@ func ClientError(err error) error {
 	}
 
 	// fallback
-	return New("go.micro.client", s.Message(), MicroStatusFromGrpcCode(s.Code()))
+	return New(id, s.Message(), MicroStatusFromGrpcCode(s.Code()))
 }
 
 func MicroStatusFromGrpcCode(code codes.Code) int32 {

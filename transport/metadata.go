@@ -105,8 +105,8 @@ func FromContext(ctx context.Context) (Metadata, bool) {
 
 func CopyFromContext(ctx context.Context) map[string]string {
 	headers := make(map[string]string)
-	md, ok := ctx.Value(metadataKey{}).(Metadata)
-	if ok {
+	md, ok := FromContext(ctx)
+	if !ok {
 		// capitalise all value
 		for k, v := range md {
 			headers[eng.String(k)] = v

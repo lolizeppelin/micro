@@ -7,7 +7,7 @@ import (
 )
 
 // CallFunc represents the individual call func.
-type CallFunc func(ctx context.Context, node *micro.Node, req micro.Request, rsp interface{}, opts CallOptions) error
+type CallFunc func(ctx context.Context, node *micro.Node, req micro.Request, opts CallOptions) (*transport.Message, error)
 
 // CallWrapper is a low level wrapper for the CallFunc.
 type CallWrapper func(CallFunc) CallFunc
@@ -29,9 +29,14 @@ func (f *fromServiceWrapper) setHeaders(ctx context.Context) context.Context {
 	return transport.MergeContext(ctx, f.headers, false)
 }
 
-func (f *fromServiceWrapper) Call(ctx context.Context, req micro.Request, rsp interface{}, opts ...CallOption) error {
+func (f *fromServiceWrapper) RPC(ctx context.Context, req micro.Request, res *micro.Response, opts ...CallOption) error {
 	ctx = f.setHeaders(ctx)
-	return f.Client.Call(ctx, req, rsp, opts...)
+	return f.Client.RPC(ctx, req, res, opts...)
+}
+
+func (f *fromServiceWrapper) Call(ctx context.Context, req micro.Request, opts ...CallOption) (*transport.Message, error) {
+	ctx = f.setHeaders(ctx)
+	return f.Client.Call(ctx, req, opts...)
 }
 
 func (f *fromServiceWrapper) Stream(ctx context.Context, req micro.Request, opts ...CallOption) (micro.Stream, error) {

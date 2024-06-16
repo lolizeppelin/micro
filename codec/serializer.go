@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/lolizeppelin/micro"
 	"io"
 )
 
@@ -13,26 +14,43 @@ const (
 	maxInt         = int(^uint(0) >> 1)
 )
 
-func Unmarshal(protocol string, buff []byte, b interface{}) error {
+// 用于传递载荷
+
+func Unmarshal(protocol string, buff []byte, payload *micro.Response) error {
 	switch protocol {
+	case "application/grpc+bytes":
+		payload.Body = buff
 	case "application/grpc+json", "application/json":
-		return json.Unmarshal(buff, b)
+		return json.Unmarshal(buff, payload.Body)
 	case "application/grpc+proto", "application/grpc":
-		return proto.Unmarshal(buff, b.(proto.Message))
+		pb, ok := payload.Body.(proto.Message)
+		if !ok {
+			return fmt.Errorf("proto.Message requried for codec.Unmarshal")
+		}
+		return proto.Unmarshal(buff, pb)
 	}
 	return fmt.Errorf("protocol '%s' not support for codec.Unmarshal", protocol)
 }
 
 func Marshal(protocol string, b interface{}) ([]byte, error) {
 	switch protocol {
+
+	case "application/grpc+bytes":
+		v, ok := b.([]byte)
+		if !ok {
+			return nil, fmt.Errorf("bytes requried for codec.Marshal")
+		}
+		return v, nil
 	case "application/grpc+json", "application/json":
 		return json.Marshal(b)
 	case "application/grpc+proto", "application/grpc":
 		pb, ok := b.(proto.Message)
-		if ok {
-			return proto.Marshal(pb)
+		if !ok {
+			return nil, fmt.Errorf("proto.Message requried for codec.Marshal")
+
 		}
-		return nil, fmt.Errorf("proto.Message requried for codec.Marshal")
+		return proto.Marshal(pb)
+
 	}
 
 	return nil, fmt.Errorf("protocol '%s' not support for codec.Marshal", protocol)

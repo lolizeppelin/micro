@@ -36,8 +36,8 @@ func MatchCodec(protocol, codec string) bool {
 }
 
 type Protocols struct {
-	ContentType string // 原始
-	Accept      string
-	Reqeust     string
-	Response    string
+	ContentType string // 原始 ContentType
+	Accept      string // 原始 Accept
+	Reqeust     string // 请求
+	Response    string // 返回
 }

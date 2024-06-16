@@ -2,21 +2,27 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/lolizeppelin/micro/utils"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 )
 
-func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Request, resp interface{}, opts CallOptions) error {
-	address := node.Address
+func (r *rpcClient) call(ctx context.Context, node *micro.Node,
+	req micro.Request, opts CallOptions) (*transport.Message, error) {
+
+	protocol := req.Protocols()
+	body, err := codec.Marshal(protocol.Reqeust, req.Body())
+	if err != nil {
+		return nil, exc.BadRequest("micro.rpc.call", err.Error())
+	}
 
 	headers := transport.CopyFromContext(ctx)
-	protocol := req.Protocols()
 	headers[micro.ContentType] = protocol.Reqeust
 	headers[micro.Accept] = protocol.Response
 	headers[transport.Service] = req.Service()
@@ -26,93 +32,44 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node, req micro.Reques
 	// Set connection timeout for single requests to the server. Should be > 0
 	// as otherwise requests can't be made.
 	cTimeout := opts.ConnectionTimeout
-	if cTimeout == 0 {
-		log.Debugf("connection timeout was set to 0, overwrite to default connection timeout")
-		cTimeout = DefaultConnectionTimeout
+	if cTimeout <= transport.DefaultDialTimeout {
+		log.Debugf("overwrite to default connection timeout")
+		cTimeout = transport.DefaultDialTimeout
 	}
 	// set timeout in nanoseconds
-	headers["Timeout"] = utils.UnsafeToString(cTimeout / time.Second)
+	headers["Timeout"] = utils.UnsafeToString(opts.RequestTimeout / time.Second)
 
-	c, err := r.pool.Get(address, opts.DialTimeout)
+	c, err := r.pool.Get(node.Address, opts.DialTimeout)
 	if err != nil {
-		return exc.InternalServerError("go.micro.client", "connection error: %v", err)
+		return nil, exc.InternalServerError("micro.client.call", "connection error: %v", err)
 	}
 
 	seq := atomic.AddUint64(&r.seq, 1) - 1
-	codec := newRPCCodec(headers, c, protocol, false)
+	headers[transport.ID] = utils.UnsafeToString(seq)
 
-	rsp := &rpcResponse{
-		socket: c,
-		codec:  codec,
-	}
-
-	releaseFunc := func(err error) {
-		if err = r.pool.Release(c, err); err != nil {
-			log.Errorf("failed to release pool: %s", err.Error())
-		}
-	}
-
-	stream := &rpcStream{
-		id:       seq,
-		context:  ctx,
-		request:  req,
-		response: rsp,
-		codec:    codec,
-		closed:   make(chan bool),
-		close:    opts.ConnClose,
-		release:  releaseFunc,
-		sendEOS:  false,
-	}
-
-	// close the stream on exiting this function
 	defer func() {
-		if err := stream.Close(); err != nil {
-			log.Errorf("failed to close stream %s", err.Error())
-		}
-	}()
 
-	// wait for error response
-	ch := make(chan error, 1)
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ch <- exc.InternalServerError("go.micro.client", "panic recovered: %v", r)
+		if e := recover(); e != nil {
+			if err != nil {
+				err = exc.InternalServerError("micro.client.call", "rpc call panic")
 			}
-		}()
-		// send request
-		if err := stream.Send(req.Body()); err != nil {
-			ch <- err
-			return
+			log.Error("rpc call panic\n%s", debug.Stack())
 		}
 
-		// recv request
-		if err := stream.Recv(resp); err != nil {
-			ch <- err
-			return
+		if e := r.pool.Release(c, err); e != nil {
+			log.Errorf("failed to close stream %v", e.Error())
 		}
-
-		// success
-		ch <- nil
 	}()
 
-	var grr error
-
-	select {
-	case err := <-ch:
-		return exc.ClientError(err)
-	case <-time.After(cTimeout):
-		grr = exc.Timeout("go.micro.client", fmt.Sprintf("%v", ctx.Err()))
+	var msg *transport.Message
+	msg, err = c.Call(ctx, &transport.Message{
+		Header: headers,
+		Query:  req.Query(),
+		Body:   body,
+	})
+	if err != nil {
+		return nil, exc.ClientError("micro.client.call", err)
 	}
+	return msg, nil
 
-	// set the stream error
-	if grr != nil {
-		stream.Lock()
-		stream.err = grr
-		stream.Unlock()
-
-		return grr
-	}
-
-	return nil
 }

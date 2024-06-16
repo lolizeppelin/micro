@@ -65,7 +65,7 @@ func (s *Service) dispatch(event broker.Event) (err error) {
 	}
 
 	ctx := transport.NewContext(context.Background(), hdr)
-	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Body)
+	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Query, msg.Body)
 	if err != nil {
 		return err
 	}

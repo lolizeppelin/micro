@@ -45,17 +45,12 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 
 	body := request.Body()
 
-	if payload, ok := body.(*codec.Frame); ok {
-		// set body
-		msg.Body = payload.Data
-	} else {
-		b, err := codec.Marshal(protocol.Reqeust, body)
-		if err != nil {
-			return exc.InternalServerError(packageID, err.Error())
-		}
-		// set the body
-		msg.Body = b
+	b, err := codec.Marshal(protocol.Reqeust, body)
+	if err != nil {
+		return exc.InternalServerError("micro.rpc.publish", err.Error())
 	}
+	// set the body
+	msg.Body = b
 
 	l, ok := r.once.Load().(bool)
 	if !ok {
@@ -63,7 +58,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	}
 	if !l {
 		if err := r.opts.Broker.Connect(); err != nil {
-			return exc.InternalServerError(packageID, err.Error())
+			return exc.InternalServerError("micro.rpc.publish", err.Error())
 		}
 		r.once.Store(true)
 	}

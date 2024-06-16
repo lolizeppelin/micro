@@ -2,76 +2,145 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/lolizeppelin/micro/utils"
+	"io"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
-	req micro.Request, opts CallOptions) (micro.Stream, error) {
-	address := node.Address
+const (
+	lastStreamResponseError = "EOS"
+)
 
-	headers := make(map[string]string)
+type rpcStream struct {
+	sync.RWMutex
+	closed bool
 
-	md, ok := transport.FromContext(ctx)
-	if ok {
-		for k, v := range md {
-			headers[k] = v
+	headers map[string]string
+	client  transport.Client
+	// signal whether we should send EOS
+	sendEOS bool
+}
+
+func (r *rpcStream) Send(body []byte) error {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.closed {
+		return io.EOF
+	}
+
+	if err := r.client.Send(&transport.Message{
+		Header: r.headers,
+		Body:   body,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *rpcStream) Recv(protocol string, res *micro.Response) error {
+	if r.Closed() {
+		return io.EOF
+	}
+
+	msg := new(transport.Message)
+	err := r.client.Recv(msg)
+
+	if err != nil {
+		// 非主动关闭
+		if errors.Is(err, io.EOF) && !r.Closed() {
+			return io.ErrUnexpectedEOF
+		}
+		return err
+	}
+
+	sErr := msg.Header[transport.Error]
+	if sErr != "" {
+		if sErr != lastStreamResponseError {
+			return exc.InternalServerError("go.micro.stream", "recv error")
 		}
 	}
+	return codec.Unmarshal(protocol, msg.Body, res)
+}
+
+func (r *rpcStream) CloseSend() error {
+	return errors.New("streamer not implemented")
+}
+
+func (r *rpcStream) Closed() bool {
+	r.RLock()
+	closed := r.closed
+	r.RUnlock()
+	return closed
+}
+
+func (r *rpcStream) Close() error {
+	r.Lock()
+	if r.closed {
+		r.Unlock()
+		return nil
+	}
+	r.closed = true
+	r.Unlock()
+
+	if r.sendEOS {
+		err := r.client.Send(&transport.Message{
+			Header: map[string]string{
+				transport.Error: lastStreamResponseError,
+			},
+		})
+		if err != nil {
+			log.Errorf("send close package failed: %s", err.Error())
+		}
+	}
+	return r.client.Close()
+
+}
+
+func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
+	req micro.Request, opts CallOptions) (micro.Stream, error) {
+
+	protocol := req.Protocols()
+	body, err := codec.Marshal(protocol.Reqeust, req.Body())
+	if err != nil {
+		return nil, exc.BadRequest("micro.client.stream", err.Error())
+	}
+
+	headers := transport.CopyFromContext(ctx)
+	headers[micro.ContentType] = protocol.Reqeust
+	headers[micro.Accept] = protocol.Response
+	headers[transport.Service] = req.Service()
+	headers[transport.Method] = req.Method()
+	headers[transport.Endpoint] = req.Endpoint()
 
 	// set timeout in nanoseconds
 	if opts.StreamTimeout > time.Duration(0) {
 		headers["Timeout"] = utils.UnsafeToString(opts.StreamTimeout / time.Second)
 	}
-	protocol := req.Protocols()
-	// set the content type for the request
-	headers[micro.ContentType] = protocol.Reqeust
-	// set the accept header
-	headers[micro.Accept] = protocol.Response
 	// set old codecs
-	c, err := r.opts.Transport.Dial(address, opts.DialTimeout, true)
+	c, err := r.opts.Transport.Dial(node.Address, opts.DialTimeout, true)
 	if err != nil {
-		return nil, exc.InternalServerError("go.micro.client", "connection error: %v", err)
+		return nil, exc.InternalServerError("micro.client.stream", "connection error: %v", err)
 	}
-
 	// increment the sequence number
 	seq := atomic.AddUint64(&r.seq, 1) - 1
-	// create codec with stream id
-	codec := newRPCCodec(headers, c, protocol, false)
-
-	rsp := &rpcResponse{
-		socket: c,
-		codec:  codec,
-	}
-
-	// set request codec
-	if r, ok := req.(*rpcRequest); ok {
-		r.codec = codec
-	}
-
-	releaseFunc := func(_ error) {
-		if err = c.Close(); err != nil {
-			log.Error(err)
-		}
-	}
+	headers[transport.ID] = utils.UnsafeToString(seq)
 
 	stream := &rpcStream{
-		id:       seq,
-		context:  ctx,
-		request:  req,
-		response: rsp,
-		codec:    codec,
-		// used to close the stream
-		closed: make(chan bool),
+		headers: headers,
+		client:  c,
 		// signal the end of stream,
 		sendEOS: true,
-		release: releaseFunc,
 	}
 
 	// wait for error response
@@ -79,30 +148,21 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 
 	go func() {
 		// send the first message
-		ch <- stream.Send(req.Body())
+		ch <- stream.Send(body)
 	}()
 
-	var grr error
-
 	select {
-	case err := <-ch:
-		grr = err
+	case err = <-ch:
 	case <-ctx.Done():
-		grr = exc.Timeout("go.micro.client", fmt.Sprintf("%v", ctx.Err()))
+		err = exc.Timeout("go.micro.stream", fmt.Sprintf("%v", ctx.Err()))
 	}
 
-	if grr != nil {
-		// set the error
-		stream.Lock()
-		stream.err = grr
-		stream.Unlock()
-
+	if err != nil {
 		// close the stream
-		if err := stream.Close(); err != nil {
+		if err = stream.Close(); err != nil {
 			log.Errorf("failed to close stream: %v", err)
 		}
-
-		return nil, grr
+		return nil, err
 	}
 
 	return stream, nil

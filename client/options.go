@@ -20,8 +20,6 @@ const (
 	DefaultRetries = 5
 	// DefaultRequestTimeout is the default request timeout.
 	DefaultRequestTimeout = time.Second * 30
-	// DefaultConnectionTimeout is the default connection timeout.
-	DefaultConnectionTimeout = time.Second * 5
 	// DefaultPoolSize sets the connection pool size.
 	DefaultPoolSize = 100
 	// DefaultPoolTTL sets the connection pool ttl.
@@ -56,7 +54,7 @@ func NewOptions(options ...Option) Options {
 			Retry:             DefaultRetry,
 			Retries:           DefaultRetries,
 			RequestTimeout:    DefaultRequestTimeout,
-			ConnectionTimeout: DefaultConnectionTimeout,
+			ConnectionTimeout: transport.DefaultDialTimeout,
 			DialTimeout:       transport.DefaultDialTimeout,
 		},
 		PoolSize: DefaultPoolSize,

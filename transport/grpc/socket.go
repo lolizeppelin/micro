@@ -42,20 +42,22 @@ func (g *grpcTransportClient) Send(m *transport.Message) error {
 	if m == nil {
 		return nil
 	}
-
 	return g.stream.Send(&tp.Message{
 		Header: m.Header,
 		Body:   m.Body,
+		Query:  m.Query.Encode(),
 	})
 }
 
-func (g *grpcTransportClient) Call(m *transport.Message) (*transport.Message, error) {
+func (g *grpcTransportClient) Call(ctx context.Context, m *transport.Message) (*transport.Message, error) {
 	if m == nil {
 		return nil, nil
 	}
-	result, err := tp.NewTransportClient(g.conn).Call(context.Background(), &tp.Message{
+
+	result, err := tp.NewTransportClient(g.conn).Call(ctx, &tp.Message{
 		Header: m.Header,
 		Body:   m.Body,
+		Query:  m.Query.Encode(),
 	})
 	if err != nil {
 		return nil, err
@@ -64,6 +66,7 @@ func (g *grpcTransportClient) Call(m *transport.Message) (*transport.Message, er
 	return &transport.Message{
 		Header: result.Header,
 		Body:   result.Body,
+		Query:  result.QueryParams(),
 	}, nil
 
 }

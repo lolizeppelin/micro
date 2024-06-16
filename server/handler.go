@@ -79,9 +79,6 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	timeout := int64(0)
 	md := transport.Metadata{}
 	for k, v := range gmd {
-		if k == "x-content-type" {
-			continue
-		}
 		if k == "timeout" && len(v) > 0 {
 			timeout, _ = strconv.ParseInt(v[0], 10, 64)
 		}
@@ -118,7 +115,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	}
 
 	var args []reflect.Value
-	args, err = handler.BuildArgs(_ctx, request.Header[micro.ContentType], request.Body)
+	args, err = handler.BuildArgs(_ctx, request.Header[micro.ContentType], request.QueryParams(), request.Body)
 	if err != nil {
 		return err
 	}
