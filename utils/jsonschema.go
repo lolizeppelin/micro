@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// BuildJsonSchema 从结构体生成json schema
 func BuildJsonSchema(value reflect.Type) ([]byte, error) {
 	r := jsonschema.Reflector{}
 

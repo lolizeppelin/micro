@@ -2,10 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/schema"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/codec"
 	"github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/xeipuuv/gojsonschema"
@@ -22,13 +23,7 @@ var (
 	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
-	decoder        = schema.NewDecoder()
 )
-
-func init() {
-	decoder.SetAliasTag("json")
-	decoder.IgnoreUnknownKeys(true)
-}
 
 func isExported(name string) bool {
 	r, _ := utf8.DecodeRuneInString(name)
@@ -85,42 +80,63 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Internal  bool
-	Name      string               // method name
-	Rtype     reflect.Type         // 结构体
-	Receiver  reflect.Value        // receiver of method
-	Method    reflect.Method       // method stub
-	Query     reflect.Type         // 请求url query pram参数校验器
-	Request   reflect.Type         // 请求参数
-	Validator *gojsonschema.Schema // 请求参数校验器
-	Response  reflect.Type         // 返回参数
-	Metadata  map[string]string    // 元数据
+	Internal       bool
+	Component      string               // component name
+	Name           string               // method name
+	Rtype          reflect.Type         // 结构体
+	Receiver       reflect.Value        // receiver of method
+	Method         reflect.Method       // method stub
+	Query          reflect.Type         // 请求url query pram参数校验器
+	Request        reflect.Type         // 请求参数
+	QueryValidator *gojsonschema.Schema // 请求参数校验器
+	BodyValidator  *gojsonschema.Schema // 请求载荷校验器
+	Response       reflect.Type         // 返回参数
+	Metadata       map[string]string    // 元数据
 }
 
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
 	args := []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}
-
-	if handler.Query == nil {
+	if handler.Query == nil && handler.Request == nil {
 		return args, nil
 	}
 
-	// validator query parameters
-	arg := reflect.New(handler.Request.Elem())
-	if err := decoder.Decode(arg.Interface(), query); err != nil {
-		return nil, errors.BadRequest("micro.server", "Validate request query failed")
+	var arg reflect.Value
+	if handler.Query == nil {
+		arg = reflect.ValueOf(nil)
+	} else {
+		// validator query parameters
+		arg = reflect.New(handler.Query.Elem())
+		endpoint := fmt.Sprintf("%s.%s", handler.Component, handler.Name)
+		// url.Values转结构体
+		if err := codec.UnmarshalQuery(endpoint, query, arg.Interface()); err != nil {
+			return nil, errors.BadRequest("micro.server", "Unmarshal request query failed")
+		}
+		// query结构体转bytes进行json schema校验
+		buff, _ := json.Marshal(arg.Interface())
+		result, err := handler.QueryValidator.Validate(gojsonschema.NewBytesLoader(buff))
+		if err != nil {
+			return nil, err
+		}
+		if !result.Valid() {
+			msg := fmt.Sprintf("Validate request query failed")
+			for _, desc := range result.Errors() {
+				msg = fmt.Sprintf("%s %s", msg, desc)
+			}
+			return nil, errors.BadRequest("micro.server", msg)
+		}
 	}
-	args = append(args, arg)
 
+	args = append(args, arg)
 	if handler.Request == nil {
 		return args, nil
 	}
-	codec := encoding.GetCodec(protocol)
-	if codec == nil {
+	_codec := encoding.GetCodec(protocol)
+	if _codec == nil {
 		return nil, errors.BadRequest("micro.server", "codec not found: '%s'", protocol)
 	}
 
-	if handler.Validator != nil {
-		result, err := handler.Validator.Validate(gojsonschema.NewBytesLoader(body))
+	if handler.BodyValidator != nil {
+		result, err := handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +154,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	} else {
 		arg = reflect.New(handler.Request.Elem())
 	}
-	if err := codec.Unmarshal(body, arg.Interface()); err != nil {
+	if err := _codec.Unmarshal(body, arg.Interface()); err != nil {
 		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 	args = append(args, arg)
@@ -206,19 +222,25 @@ func extractComponent(component micro.Component) map[string]*Handler {
 		if isHandlerMethod(method) {
 			metadata := make(map[string]string)
 			handler := &Handler{
-				Name:   name,
-				Method: method,
-				Rtype:  rtype,
+				Component: component.Name(),
+				Name:      name,
+				Method:    method,
+				Rtype:     rtype,
 			}
-			if mt.NumIn() == 3 {
-				handler.Query = mt.In(2)
+			if mt.NumIn() >= 3 {
+				query := mt.In(2)
+				if query.NumField() > 0 {
+					handler.Query = query
+				}
+				buff, _ := utils.BuildJsonSchema(handler.Request)
+				loader := gojsonschema.NewBytesLoader(buff)
+				validator, _ := gojsonschema.NewSchema(loader)
+				handler.QueryValidator = validator
 			}
 			if mt.NumIn() == 4 {
 				handler.Request = mt.In(3)
 				if handler.Request == typeOfBytes {
 					metadata["req"] = "bytes"
-				} else if handler.Request.Implements(typeOfProtoMsg) {
-					metadata["req"] = "proto"
 				} else if handler.Request.Kind() == reflect.Func {
 					// TODO 流式rpc支持
 					panic("no support stream rpc")
@@ -228,7 +250,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 					buff, _ := utils.BuildJsonSchema(handler.Request)
 					loader := gojsonschema.NewBytesLoader(buff)
 					validator, _ := gojsonschema.NewSchema(loader)
-					handler.Validator = validator
+					handler.BodyValidator = validator
 					metadata["req"] = "json"
 				}
 			}
