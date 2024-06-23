@@ -229,13 +229,13 @@ func extractComponent(component micro.Component) map[string]*Handler {
 			}
 			if mt.NumIn() >= 3 {
 				query := mt.In(2)
-				if query.NumField() > 0 {
+				if query.Elem().NumField() > 0 {
 					handler.Query = query
+					buff, _ := utils.BuildJsonSchema(handler.Query)
+					loader := gojsonschema.NewBytesLoader(buff)
+					validator, _ := gojsonschema.NewSchema(loader)
+					handler.QueryValidator = validator
 				}
-				buff, _ := utils.BuildJsonSchema(handler.Request)
-				loader := gojsonschema.NewBytesLoader(buff)
-				validator, _ := gojsonschema.NewSchema(loader)
-				handler.QueryValidator = validator
 			}
 			if mt.NumIn() == 4 {
 				handler.Request = mt.In(3)
