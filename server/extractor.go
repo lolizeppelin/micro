@@ -8,7 +8,7 @@ import (
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
 	"github.com/lolizeppelin/micro/errors"
-	"github.com/lolizeppelin/micro/utils"
+	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/grpc/encoding"
 	"net/url"
@@ -231,7 +231,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 				query := mt.In(2)
 				if query.Elem().NumField() > 0 {
 					handler.Query = query
-					buff, _ := utils.BuildJsonSchema(handler.Query)
+					buff, _ := jsonschema.Marshal(handler.Query)
 					loader := gojsonschema.NewBytesLoader(buff)
 					validator, _ := gojsonschema.NewSchema(loader)
 					handler.QueryValidator = validator
@@ -247,7 +247,7 @@ func extractComponent(component micro.Component) map[string]*Handler {
 					//metadata["req"] = "stream"
 				} else {
 					// 生成Validator
-					buff, _ := utils.BuildJsonSchema(handler.Request)
+					buff, _ := jsonschema.Marshal(handler.Request)
 					loader := gojsonschema.NewBytesLoader(buff)
 					validator, _ := gojsonschema.NewSchema(loader)
 					handler.BodyValidator = validator
