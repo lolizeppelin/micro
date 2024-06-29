@@ -25,7 +25,8 @@ func Schema(target reflect.Type) (map[string]any, error) {
 }
 
 // General 通用api
-func General(path string, query reflect.Type, req reflect.Type, res reflect.Type) (api APIPath, err error) {
+func General(path string, metadata map[string]string,
+	query reflect.Type, req reflect.Type, res reflect.Type) (api APIPath, err error) {
 
 	p := APIPath{
 		Path: path,
@@ -52,14 +53,20 @@ func General(path string, query reflect.Type, req reflect.Type, res reflect.Type
 		if err != nil {
 			return
 		}
-		p.Request.Body = m
+		p.Request.Body = ContentBody{
+			Type:   metadata["res"],
+			Schema: m,
+		}
 	}
 	if res != nil {
 		m, err = Schema(res)
 		if err != nil {
 			return
 		}
-		p.Responses[0].Body = m
+		p.Responses[0].Body = &ContentBody{
+			Type:   metadata["req"],
+			Schema: m,
+		}
 	}
 	api = p
 
