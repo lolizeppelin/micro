@@ -1,14 +1,14 @@
 package jsonschema
 
+type ContentBody struct {
+	Type   string         `json:"type,omitempty" description:"返回类型"`
+	Schema map[string]any `json:"schema,omitempty" description:"返回结构"`
+}
+
 type Request struct {
 	Method string         `json:"method" description:"请求方法"`
 	Query  map[string]any `json:"query,omitempty" description:"请求参数结构"`
 	Body   ContentBody    `json:"body,omitempty" description:"请求载荷结构"`
-}
-
-type ContentBody struct {
-	Type   string         `json:"type,omitempty" description:"返回类型"`
-	Schema map[string]any `json:"schema,omitempty" description:"返回结构"`
 }
 
 type Response struct {
@@ -18,7 +18,7 @@ type Response struct {
 }
 
 type APIPath struct {
-	Path        string      `json:"path"  description:"接口"`
+	Path        string      `json:"path"  description:"接口路径"`
 	Summary     string      `json:"summary,omitempty"  description:"接口概述"`
 	Description string      `json:"description,omitempty"  description:"接口详细说明"`
 	Request     *Request    `json:"request,omitempty" description:"请求"`
