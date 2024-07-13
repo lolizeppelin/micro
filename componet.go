@@ -15,6 +15,7 @@ type Component interface {
 	Shutdown()
 
 	Name() string
+	Collection() string
 	Internal() bool
 }
 

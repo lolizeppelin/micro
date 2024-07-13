@@ -11,8 +11,10 @@ import (
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/grpc/encoding"
+	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -23,6 +25,8 @@ var (
 	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
+	prefix, _      = regexp.Compile(fmt.Sprintf("^(|%s|%s|%s|%s|%s).+?",
+		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
 )
 
 func isExported(name string) bool {
@@ -81,7 +85,8 @@ func ServiceMethod(m string) (string, string, error) {
 
 type Handler struct {
 	Internal       bool
-	Component      string               // component name
+	Resource       string               // collection name
+	Collection     string               // collection name
 	Name           string               // method name
 	Rtype          reflect.Type         // 结构体
 	Receiver       reflect.Value        // receiver of method
@@ -94,6 +99,9 @@ type Handler struct {
 	Metadata       map[string]string    // 元数据
 }
 
+/*
+BuildArgs rpc转发将请求转数据转化为反射调用参数
+*/
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
 	args := []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}
 	if handler.Query == nil && handler.Request == nil {
@@ -106,7 +114,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	} else {
 		// validator query parameters
 		arg = reflect.New(handler.Query.Elem())
-		endpoint := fmt.Sprintf("%s.%s", handler.Component, handler.Name)
+		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
 		// url.Values转结构体
 		if err := codec.UnmarshalQuery(endpoint, query, arg.Interface()); err != nil {
 			return nil, errors.BadRequest("micro.server", "Unmarshal request query failed")
@@ -161,10 +169,64 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	return args, nil
 }
 
+/*
+Match 判断请求头类型是否匹配
+*/
 func (handler *Handler) Match(request, response string) bool {
 	//return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
 	return micro.MatchCodec(request, handler.Metadata["req"]) &&
 		micro.MatchCodec(response, handler.Metadata["res"])
+}
+
+/*
+Restful 获取Restful path
+*/
+func (handler *Handler) Restful() (path, method string) {
+	path = "/Restful/"
+	switch handler.Method.Name {
+	case "Get":
+		method = http.MethodGet
+		path += fmt.Sprintf("%s/{id}", handler.Resource)
+	case "List":
+		path += handler.Collection
+		method = http.MethodGet
+		return
+	case "Create":
+		method = http.MethodPost
+		path += handler.Collection
+		return
+	case "Update":
+		method = http.MethodPut
+		path += fmt.Sprintf("%s/{id}", handler.Resource)
+		return
+	case "Patch":
+		method = http.MethodPatch
+		path += handler.Collection
+		return
+	case "Delete":
+		method = http.MethodPatch
+		path += handler.Collection
+		return
+	}
+	return
+}
+
+/*
+UrlPath 获取非Restful path
+*/
+func (handler *Handler) UrlPath() (path, method string) {
+	switch handler.Method.Name {
+	case "Get", "List", "Create", "Update", "Patch", "Delete":
+		return
+	default:
+		method = prefix.FindString(handler.Method.Name)
+		if method == "" {
+			// skip
+			return
+		}
+		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Method.Name[len(method):])
+	}
+	return
 }
 
 func isHandlerMethod(method reflect.Method) bool {
@@ -222,10 +284,11 @@ func extractComponent(component micro.Component) map[string]*Handler {
 		if isHandlerMethod(method) {
 			metadata := make(map[string]string)
 			handler := &Handler{
-				Component: component.Name(),
-				Name:      name,
-				Method:    method,
-				Rtype:     rtype,
+				Resource:   component.Name(),
+				Collection: component.Collection(),
+				Name:       name,
+				Method:     method,
+				Rtype:      rtype,
 			}
 			if mt.NumIn() >= 3 {
 				query := mt.In(2)
