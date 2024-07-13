@@ -49,18 +49,12 @@ func PopQuery(query string, skip ...string) (string, error) {
 			q.Add(k, _v)
 		}
 	}
-
 	return q.Query(), nil
 }
 
-func BuildQuery(values map[string]string) string {
-	q := queryValues{}
-	for k, v := range values {
-		q.Add(k, v)
-	}
-	return q.Query()
-}
-
+/*
+ParseQuery query string转化为map
+*/
 func ParseQuery(query string) (values map[string]string, err error) {
 	m, err := url.ParseQuery(query)
 	if err != nil {
@@ -71,4 +65,33 @@ func ParseQuery(query string) (values map[string]string, err error) {
 		values[key] = value[0]
 	}
 	return
+}
+
+/*
+SortedQuery 按照key升序的顺序生成的query string
+*/
+func SortedQuery(values map[string]string) string {
+	q := queryValues{}
+	for k, v := range values {
+		q.Add(k, v)
+	}
+	return q.Query()
+}
+
+/*
+OrderedQuery 按照字典写入顺的生成query string
+*/
+func OrderedQuery(values *OrderedMap[string, string]) string {
+	buf := strings.Builder{}
+	for el := values.Front(); el != nil; el = el.Next() {
+		if buf.Len() > 0 {
+			buf.WriteByte('&')
+		}
+		buf.WriteString(el.Key)
+		buf.WriteByte('=')
+		buf.WriteString(el.Value)
+
+	}
+	return buf.String()
+
 }
