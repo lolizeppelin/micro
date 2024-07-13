@@ -25,13 +25,13 @@ func Schema(target reflect.Type) (map[string]any, error) {
 }
 
 // General 通用api
-func General(path string, metadata map[string]string,
+func General(path, method string, metadata map[string]string,
 	query reflect.Type, req reflect.Type, res reflect.Type) (api APIPath, err error) {
 
 	p := APIPath{
 		Path: path,
 		Request: &Request{
-			Method: http.MethodPost,
+			Method: method,
 		},
 		Responses: []*Response{
 			{
