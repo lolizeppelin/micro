@@ -3,7 +3,6 @@ package jsonschema
 import (
 	"encoding/json"
 	"github.com/swaggest/jsonschema-go"
-	"net/http"
 	"reflect"
 )
 
