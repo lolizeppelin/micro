@@ -10,7 +10,15 @@ import (
 
 var _unixPathLikeRegex = regexp.MustCompile(`^/([^\p{C}\p{Z}]*[\p{L}\p{N}\.\-]+[^\p{C}\p{Z}]*)+$`)
 
-func PathExist(path string) (os.FileInfo, error) {
+func PathExist(path string) (bool, error) {
+	info, err := PathFileInfo(path)
+	if err != nil {
+		return false, err
+	}
+	return info == nil, nil
+}
+
+func PathFileInfo(path string) (os.FileInfo, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -22,7 +30,7 @@ func PathExist(path string) (os.FileInfo, error) {
 }
 
 func PathIsDir(path string) (bool, error) {
-	fileInfo, err := PathExist(path)
+	fileInfo, err := PathFileInfo(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -36,7 +44,7 @@ func PathIsDir(path string) (bool, error) {
 }
 
 func PathIsRegularFile(path string) (bool, error) {
-	fileInfo, err := PathExist(path)
+	fileInfo, err := PathFileInfo(path)
 	if err != nil {
 		return false, err
 	}
@@ -117,4 +125,8 @@ func ReadFile(path string) ([]byte, error) {
 		return nil, errors.New("path is not regular file")
 	}
 	return os.ReadFile(path)
+}
+
+func IsSafePathName(name string) bool {
+	return true
 }

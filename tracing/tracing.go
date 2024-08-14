@@ -1,5 +1,5 @@
 package tracing
 
 import (
-	_ "github.com/opentracing/opentracing-go"
+	_ "go.opentelemetry.io/otel"
 )

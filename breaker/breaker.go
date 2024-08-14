@@ -2,16 +2,14 @@ package breaker
 
 import (
 	"github.com/lolizeppelin/micro"
-	_ "github.com/sony/gobreaker"
-)
+	"github.com/lolizeppelin/micro/transport"
 
-import (
 	"context"
 	"sync"
 
 	"github.com/lolizeppelin/micro/client"
 	exc "github.com/lolizeppelin/micro/errors"
-	"github.com/sony/gobreaker"
+	"github.com/sony/gobreaker/v2"
 )
 
 type Scope int
@@ -24,12 +22,12 @@ const (
 type clientWrapper struct {
 	bs    gobreaker.Settings
 	scope Scope
-	cbs   map[string]*gobreaker.TwoStepCircuitBreaker
+	cbs   map[string]*gobreaker.TwoStepCircuitBreaker[bool]
 	mu    sync.Mutex
 	client.Client
 }
 
-func (c *clientWrapper) Call(ctx context.Context, req micro.Request, rsp interface{}, opts ...client.CallOption) error {
+func (c *clientWrapper) Call(ctx context.Context, req micro.Request, opts ...client.CallOption) (*transport.Message, error) {
 	var svc string
 
 	switch c.scope {
@@ -42,19 +40,20 @@ func (c *clientWrapper) Call(ctx context.Context, req micro.Request, rsp interfa
 	c.mu.Lock()
 	cb, ok := c.cbs[svc]
 	if !ok {
-		cb = gobreaker.NewTwoStepCircuitBreaker(c.bs)
+		cb = gobreaker.NewTwoStepCircuitBreaker[bool](c.bs)
 		c.cbs[svc] = cb
 	}
 	c.mu.Unlock()
 
 	cbAllow, err := cb.Allow()
 	if err != nil {
-		return exc.New(req.Service(), err.Error(), 502)
+		return nil, exc.New(req.Service(), err.Error(), 502)
 	}
 
-	if err = c.Client.Call(ctx, req, rsp, opts...); err == nil {
+	var msg *transport.Message
+	if msg, err = c.Client.Call(ctx, req, opts...); err == nil {
 		cbAllow(true)
-		return nil
+		return msg, nil
 	}
 
 	ex := exc.Parse(err.Error())
@@ -71,7 +70,7 @@ func (c *clientWrapper) Call(ctx context.Context, req micro.Request, rsp interfa
 		cbAllow(true)
 	}
 
-	return ex
+	return nil, ex
 }
 
 // NewClientWrapper returns a client Wrapper.
@@ -79,7 +78,7 @@ func NewClientWrapper() client.Wrapper {
 	return func(c client.Client) client.Client {
 		w := &clientWrapper{}
 		w.bs = gobreaker.Settings{}
-		w.cbs = make(map[string]*gobreaker.TwoStepCircuitBreaker)
+		w.cbs = make(map[string]*gobreaker.TwoStepCircuitBreaker[bool])
 		w.Client = c
 		return w
 	}
@@ -91,7 +90,7 @@ func NewCustomClientWrapper(bs gobreaker.Settings, scope Scope) client.Wrapper {
 		w := &clientWrapper{}
 		w.scope = scope
 		w.bs = bs
-		w.cbs = make(map[string]*gobreaker.TwoStepCircuitBreaker)
+		w.cbs = make(map[string]*gobreaker.TwoStepCircuitBreaker[bool])
 		w.Client = c
 		return w
 	}
