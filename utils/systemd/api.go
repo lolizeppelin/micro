@@ -1,26 +1,25 @@
 package systemd
 
 import (
-	"errors"
 	"fmt"
+	"github.com/coreos/go-systemd/v22/daemon"
 )
 
 // ErrSdNotifyNoSocket is the error returned when the NOTIFY_SOCKET does not exist.
-var ErrSdNotifyNoSocket = errors.New("No socket")
 
 // Ready sends READY=1 to the systemd notify socket.
 func Ready() error {
-	return SdNotify("READY=1")
+	return SdNotify(daemon.SdNotifyReady)
 }
 
 // Stopping sends STOPPING=1 to the systemd notify socket.
 func Stopping() error {
-	return SdNotify("STOPPING=1")
+	return SdNotify(daemon.SdNotifyStopping)
 }
 
 // Reloading sends RELOADING=1 to the systemd notify socket.
 func Reloading() error {
-	return SdNotify("RELOADING=1")
+	return SdNotify(daemon.SdNotifyReloading)
 }
 
 // Errno sends ERRNO=? to the systemd notify socket.
@@ -35,5 +34,5 @@ func Status(status string) error {
 
 // Watchdog sends WATCHDOG=1 to the systemd notify socket.
 func Watchdog() error {
-	return SdNotify("WATCHDOG=1")
+	return SdNotify(daemon.SdNotifyWatchdog)
 }

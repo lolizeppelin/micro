@@ -4,22 +4,16 @@
 package systemd
 
 import (
-	"net"
-	"os"
+	"github.com/coreos/go-systemd/v22/daemon"
 )
 
 func SdNotify(state string) error {
-	name := os.Getenv("NOTIFY_SOCKET")
-	if name == "" {
-		return ErrSdNotifyNoSocket
-	}
-
-	conn, err := net.DialUnix("unixgram", nil, &net.UnixAddr{Name: name, Net: "unixgram"})
+	ok, err := daemon.SdNotify(false, state)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-
-	_, err = conn.Write([]byte(state))
-	return err
+	if !ok {
+		return errors.New("no systemd socket found")
+	}
+	return nil
 }
