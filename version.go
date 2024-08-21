@@ -31,7 +31,11 @@ func (v *Version) Patch() int {
 	return v.patch
 }
 
-func (v *Version) Version() string {
+// Version 版本号字符串,参数用于是否输出patch版本
+func (v *Version) Version(patch ...bool) string {
+	if len(patch) > 0 && patch[0] {
+		return fmt.Sprintf("%d.%d.%d", v.major, v.minor, v.patch)
+	}
 	return fmt.Sprintf("%d.%d", v.major, v.minor)
 }
 
