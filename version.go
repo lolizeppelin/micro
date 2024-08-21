@@ -9,6 +9,7 @@ import (
 type Version struct {
 	major int
 	minor int
+	patch int
 }
 
 func (v *Version) Main() string {
@@ -25,6 +26,11 @@ func (v *Version) Minor() int {
 	return v.minor
 }
 
+// Patch 次版本
+func (v *Version) Patch() int {
+	return v.patch
+}
+
 func (v *Version) Version() string {
 	return fmt.Sprintf("%d.%d", v.major, v.minor)
 }
@@ -34,10 +40,11 @@ func NewVersion(v string) (*Version, error) {
 	var (
 		major int
 		minor int
+		patch int
 		err   error
 	)
 	s := strings.Split(v, ".")
-	if len(s) <= 0 || len(s) > 2 {
+	if len(s) <= 0 || len(s) > 3 {
 		return nil, fmt.Errorf("version value error")
 	}
 
@@ -55,6 +62,15 @@ func NewVersion(v string) (*Version, error) {
 		}
 		if minor < 0 {
 			return nil, fmt.Errorf("minor value less then 0")
+		}
+	}
+	if len(s) >= 3 {
+		patch, err = utils.StringToInt(s[2])
+		if err != nil {
+			return nil, fmt.Errorf("patch version error")
+		}
+		if patch < 0 {
+			return nil, fmt.Errorf("patch value less then 0")
 		}
 	}
 
