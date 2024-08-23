@@ -339,15 +339,17 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 	return methods, handlers
 }
 
-func ExtractComponents(components []micro.Component) map[string]map[string]*Handler {
+func ExtractComponents(components []micro.Component) (map[string]map[string]*Handler, []*Handler) {
 	services := make(map[string]map[string]*Handler)
+	var handlers []*Handler
 	for _, c := range components {
 		value := reflect.ValueOf(c)
 		name := reflect.Indirect(value).Type().Name()
 		if !isExported(name) {
 			continue
 		}
-		methods, _ := ExtractComponent(c)
+		methods, hs := ExtractComponent(c)
+		handlers = append(handlers, hs...)
 		for method, handler := range methods {
 			handler.Receiver = value
 			m, ok := services[c.Name()]
@@ -358,7 +360,7 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Hand
 			m[method] = handler
 		}
 	}
-	return services
+	return services, handlers
 }
 
 func extractEndpoints(services map[string]map[string]*Handler) (endpoints []*micro.Endpoint) {

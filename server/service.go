@@ -24,7 +24,7 @@ func (s *Service) Handler(service string, method string) *Handler {
 
 func newService(opts *options) *Service {
 
-	services := ExtractComponents(opts.Components)
+	services, _ := ExtractComponents(opts.Components)
 	endpoints := extractEndpoints(services)
 
 	node := &micro.Node{
