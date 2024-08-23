@@ -8,6 +8,12 @@ type Module interface {
 	Shutdown() error
 }
 
+/*
+Component 通用api组件
+Restful方法名 Get/List/Create/Update/Patch/Delete
+非Restful方法名 以 GET/POST/PUT/PATCH/DELETE 开头
+其他方法为网关可转发方法
+*/
 type Component interface {
 	Init()
 	AfterInit()
