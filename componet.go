@@ -16,7 +16,6 @@ type Component interface {
 
 	Name() string
 	Collection() string
-	Internal() bool
 }
 
 type ComponentBase struct {
@@ -33,7 +32,4 @@ func (*ComponentBase) BeforeShutdown() {
 }
 func (*ComponentBase) Shutdown() {
 
-}
-func (*ComponentBase) Internal() bool {
-	return true
 }

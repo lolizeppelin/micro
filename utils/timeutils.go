@@ -21,3 +21,9 @@ func BackoffDelay(attempts int) time.Duration {
 	}
 	return time.Duration(math.Pow(float64(attempts), math.E)) * time.Millisecond * 100
 }
+
+func ExpireTime(timeout int64) (int64, int64) {
+	now := NowUnix()
+	return now, now + timeout
+
+}

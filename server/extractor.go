@@ -25,7 +25,7 @@ var (
 	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
-	prefix, _      = regexp.Compile(fmt.Sprintf("^(|%s|%s|%s|%s|%s).+?",
+	curdPrefix, _  = regexp.Compile(fmt.Sprintf("^(|%s|%s|%s|%s|%s).+?",
 		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
 )
 
@@ -84,8 +84,7 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Internal       bool
-	Resource       string               // collection name
+	Resource       string               // resource name
 	Collection     string               // collection name
 	Name           string               // method name
 	Rtype          reflect.Type         // 结构体
@@ -179,11 +178,11 @@ func (handler *Handler) Match(request, response string) bool {
 }
 
 /*
-Restful 获取Restful path
+UrlPath 获取api path
 */
-func (handler *Handler) Restful() (path, method string) {
-	path = "/Restful/"
-	switch handler.Method.Name {
+func (handler *Handler) UrlPath() (path, method string) {
+	path = "/restful/"
+	switch handler.Name {
 	case "Get":
 		method = http.MethodGet
 		path += fmt.Sprintf("%s/{id}", handler.Resource)
@@ -207,24 +206,14 @@ func (handler *Handler) Restful() (path, method string) {
 		method = http.MethodPatch
 		path += handler.Collection
 		return
-	}
-	return
-}
-
-/*
-UrlPath 获取非Restful path
-*/
-func (handler *Handler) UrlPath() (path, method string) {
-	switch handler.Method.Name {
-	case "Get", "List", "Create", "Update", "Patch", "Delete":
-		return
-	default:
-		method = prefix.FindString(handler.Method.Name)
-		if method == "" {
-			// skip
+	default: // 非restful接口
+		prefix := curdPrefix.FindString(handler.Method.Name)
+		if prefix == "" {
+			path = ""
 			return
 		}
-		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Method.Name[len(method):])
+		method = prefix
+		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Name)
 	}
 	return
 }
@@ -272,66 +261,82 @@ func isHandlerMethod(method reflect.Method) bool {
 	return true
 }
 
-func extractComponent(component micro.Component) map[string]*Handler {
+func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handler) {
 	typ := reflect.TypeOf(component)
 	methods := make(map[string]*Handler)
+	var handlers []*Handler
+
 	rtype := typ.Elem()
 
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
+		if !isHandlerMethod(method) {
+			continue
+		}
 		mt := method.Type
-		name := strings.ToLower(method.Name)
-		if isHandlerMethod(method) {
-			metadata := make(map[string]string)
-			handler := &Handler{
-				Resource:   component.Name(),
-				Collection: component.Collection(),
-				Name:       name,
-				Method:     method,
-				Rtype:      rtype,
+
+		metadata := make(map[string]string)
+		handler := &Handler{
+			Resource:   component.Name(),
+			Collection: component.Collection(),
+			Method:     method,
+			Rtype:      rtype,
+		}
+		if mt.NumIn() >= 3 {
+			query := mt.In(2)
+			if query.Elem().NumField() > 0 {
+				handler.Query = query
+				buff, _ := jsonschema.Marshal(handler.Query)
+				loader := gojsonschema.NewBytesLoader(buff)
+				validator, _ := gojsonschema.NewSchema(loader)
+				handler.QueryValidator = validator
 			}
-			if mt.NumIn() >= 3 {
-				query := mt.In(2)
-				if query.Elem().NumField() > 0 {
-					handler.Query = query
-					buff, _ := jsonschema.Marshal(handler.Query)
-					loader := gojsonschema.NewBytesLoader(buff)
-					validator, _ := gojsonschema.NewSchema(loader)
-					handler.QueryValidator = validator
-				}
+		}
+		if mt.NumIn() == 4 {
+			handler.Request = mt.In(3)
+			if handler.Request == typeOfBytes {
+				metadata["req"] = "bytes"
+			} else if handler.Request.Kind() == reflect.Func {
+				// TODO 流式rpc支持
+				panic("no support stream rpc")
+				//metadata["req"] = "stream"
+			} else {
+				// 生成Validator
+				buff, _ := jsonschema.Marshal(handler.Request)
+				loader := gojsonschema.NewBytesLoader(buff)
+				validator, _ := gojsonschema.NewSchema(loader)
+				handler.BodyValidator = validator
+				metadata["req"] = "json"
 			}
-			if mt.NumIn() == 4 {
-				handler.Request = mt.In(3)
-				if handler.Request == typeOfBytes {
-					metadata["req"] = "bytes"
-				} else if handler.Request.Kind() == reflect.Func {
-					// TODO 流式rpc支持
-					panic("no support stream rpc")
-					//metadata["req"] = "stream"
-				} else {
-					// 生成Validator
-					buff, _ := jsonschema.Marshal(handler.Request)
-					loader := gojsonschema.NewBytesLoader(buff)
-					validator, _ := gojsonschema.NewSchema(loader)
-					handler.BodyValidator = validator
-					metadata["req"] = "json"
-				}
+		}
+		if mt.NumOut() == 2 {
+			handler.Response = mt.Out(0)
+			if handler.Response == typeOfBytes {
+				metadata["res"] = "bytes"
+			} else if handler.Response.Implements(typeOfProtoMsg) {
+				metadata["res"] = "proto"
+			} else {
+				metadata["res"] = "json"
 			}
-			if mt.NumOut() == 2 {
-				handler.Response = mt.Out(0)
-				if handler.Response == typeOfBytes {
-					metadata["res"] = "bytes"
-				} else if handler.Response.Implements(typeOfProtoMsg) {
-					metadata["res"] = "proto"
-				} else {
-					metadata["res"] = "json"
-				}
+		}
+		handler.Metadata = metadata
+		switch method.Name {
+		case "Get", "List", "Create", "Update", "Patch", "Delete": // restful 接口
+			handler.Name = method.Name
+			handlers = append(handlers, handler)
+		default:
+			prefix := curdPrefix.FindString(method.Name)
+			if prefix == "" { // 非curd接口,没有前缀,网关接口
+				name := strings.ToLower(method.Name)
+				methods[name] = handler
+			} else { // 非restful 的curd接口
+				handler.Name = strings.ToLower(method.Name[len(prefix):])
+				handlers = append(handlers, handler)
 			}
-			handler.Metadata = metadata
-			methods[name] = handler
 		}
 	}
-	return methods
+
+	return methods, handlers
 }
 
 func ExtractComponents(components []micro.Component) map[string]map[string]*Handler {
@@ -342,10 +347,9 @@ func ExtractComponents(components []micro.Component) map[string]map[string]*Hand
 		if !isExported(name) {
 			continue
 		}
-		methods := extractComponent(c)
+		methods, _ := ExtractComponent(c)
 		for method, handler := range methods {
 			handler.Receiver = value
-			handler.Internal = c.Internal()
 			m, ok := services[c.Name()]
 			if !ok {
 				m = make(map[string]*Handler)
@@ -363,7 +367,6 @@ func extractEndpoints(services map[string]map[string]*Handler) (endpoints []*mic
 			endpoint := &micro.Endpoint{
 				Name:     fmt.Sprintf("%s.%s", name, method),
 				Metadata: handler.Metadata,
-				Internal: handler.Internal,
 			}
 			endpoints = append(endpoints, endpoint)
 		}

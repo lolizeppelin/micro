@@ -37,6 +37,5 @@ type Node struct {
 
 type Endpoint struct {
 	Name     string            `json:"name"`
-	Internal bool              `json:"internal,omitempty"` // 是否内部方法(不可通过外部网关转发)
-	Metadata map[string]string `json:"metadata"`           // 元数据
+	Metadata map[string]string `json:"metadata"` // 元数据
 }

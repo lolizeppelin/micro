@@ -9,15 +9,6 @@ import (
 	"strconv"
 )
 
-const (
-	baseChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	base      = 62
-)
-
-var (
-	baseBytesChars = []byte(baseChars)
-)
-
 func IntToString[T IntType](value T) string {
 	return strconv.Itoa(int(value))
 }
@@ -113,4 +104,11 @@ func ToString(i any) (string, error) {
 func UnsafeToString(i any) string {
 	v, _ := ToString(i)
 	return v
+}
+
+func Abs[T NumberType](i T) T {
+	if i < 0 {
+		return -i
+	}
+	return i
 }

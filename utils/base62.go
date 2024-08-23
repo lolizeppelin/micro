@@ -5,14 +5,14 @@ import (
 	"fmt"
 )
 
-func ToBase62Bytes(n uint) (s []byte) {
+func ToBase62Bytes(n int) (s []byte) {
 	if n <= 0 {
 		s = []byte{'0'}
 		return
 	}
 	for n > 0 {
-		s = append(s, baseBytesChars[n%base])
-		n = n / base
+		s = append(s, baseBytesChars[n%baseCharsSize])
+		n = n / baseCharsSize
 	}
 	for i := 0; i < len(s)/2; i++ {
 		s[i], s[len(s)-i-1] = s[len(s)-i-1], s[i]
@@ -20,7 +20,7 @@ func ToBase62Bytes(n uint) (s []byte) {
 	return
 }
 
-func ToBase62(n uint) string {
+func ToBase62(n int) string {
 	return string(ToBase62Bytes(n))
 }
 
@@ -30,7 +30,7 @@ func FromBase62(s string) (n int, err error) {
 		if index < 0 {
 			return -1, fmt.Errorf("string value error")
 		}
-		n = n*base + index
+		n = n*baseCharsSize + index
 	}
 	return
 }

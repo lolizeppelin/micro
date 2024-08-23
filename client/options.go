@@ -156,8 +156,6 @@ type CallOptions struct {
 
 	// Node id of remote hosts
 	Node string
-	// node version
-	Internal bool
 
 	// Request/Response timeout of entire srv.Call, for single request timeout set ConnectionTimeout.
 	RequestTimeout time.Duration
