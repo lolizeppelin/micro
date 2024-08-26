@@ -25,7 +25,8 @@ var (
 	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
-	curdPrefix, _  = regexp.Compile(fmt.Sprintf("^(|%s|%s|%s|%s|%s).+?",
+	// 组件非Restful方法
+	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s_|%s_|%s_|%s_|%s_)[A-Z].+?",
 		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
 )
 
@@ -212,7 +213,7 @@ func (handler *Handler) UrlPath() (path, method string) {
 			path = ""
 			return
 		}
-		method = prefix
+		method = prefix[:len(prefix)-1]
 		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Name)
 	}
 	return
