@@ -1,11 +1,9 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"golang.org/x/exp/slices"
 	"net"
-	"strconv"
 	"strings"
 
 	pkgErr "github.com/pkg/errors"
@@ -177,55 +175,10 @@ func HostPort(addr string, port interface{}) string {
 	return fmt.Sprintf("%s:%v", host, port)
 }
 
-// Listen takes addr:portmin-portmax and binds to the first available port
-// Example: Listen("localhost:5000-6000", fn).
-func Listen(addr string, fn func(string) (net.Listener, error)) (net.Listener, error) {
-	if strings.Count(addr, ":") == 1 && strings.Count(addr, "-") == 0 {
-		return fn(addr)
+func Listen(addr string) (net.Listener, error) {
+	if strings.HasPrefix(addr, "/") {
+		return net.Listen("unix", addr)
 	}
 
-	// host:port || host:min-max
-	host, ports, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	// try to extract port range
-	prange := strings.Split(ports, "-")
-
-	// single port
-	if len(prange) < 2 {
-		return fn(addr)
-	}
-
-	// we have a port range
-
-	// extract min port
-	min, err := strconv.Atoi(prange[0])
-	if err != nil {
-		return nil, errors.New("unable to extract port range")
-	}
-
-	// extract max port
-	max, err := strconv.Atoi(prange[1])
-	if err != nil {
-		return nil, errors.New("unable to extract port range")
-	}
-
-	// range the ports
-	for port := min; port <= max; port++ {
-		// try bind to host:port
-		ln, err := fn(HostPort(host, port))
-		if err == nil {
-			return ln, nil
-		}
-
-		// hit max port
-		if port == max {
-			return nil, err
-		}
-	}
-
-	// why are we here?
-	return nil, fmt.Errorf("unable to bind to %s", addr)
+	return net.Listen("tcp", addr)
 }

@@ -186,7 +186,7 @@ func (handler *Handler) UrlPath() (path, method string) {
 	switch handler.Name {
 	case "Get":
 		method = http.MethodGet
-		path += fmt.Sprintf("%s/{id}", handler.Resource)
+		path += fmt.Sprintf("%s/:id", handler.Resource)
 	case "List":
 		path += handler.Collection
 		method = http.MethodGet
@@ -197,7 +197,7 @@ func (handler *Handler) UrlPath() (path, method string) {
 		return
 	case "Update":
 		method = http.MethodPut
-		path += fmt.Sprintf("%s/{id}", handler.Resource)
+		path += fmt.Sprintf("%s/:id", handler.Resource)
 		return
 	case "Patch":
 		method = http.MethodPatch
