@@ -19,6 +19,7 @@ require (
 	go.opentelemetry.io/otel v1.28.0
 	go.uber.org/zap v1.17.0
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
+	golang.org/x/net v0.25.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/text v0.15.0
 	google.golang.org/grpc v1.65.0
@@ -38,7 +39,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect

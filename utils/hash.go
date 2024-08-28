@@ -7,6 +7,18 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
+	"hash/crc32"
+	"strings"
+)
+
+type HashMode string
+
+const (
+	MD5    HashMode = "md5"
+	SHA1   HashMode = "sha1"
+	SHA256 HashMode = "sha256"
+	CRC32  HashMode = "crc32"
 )
 
 func DJB33(seed uint32, k string) uint32 {
@@ -40,47 +52,55 @@ func DJB33(seed uint32, k string) uint32 {
 	return d ^ (d >> 16)
 }
 
-func HashString(mode string, value string, salt string) string {
+func HashString(mode HashMode, s ...string) string {
+	buff := []byte(strings.Join(s, ""))
 	switch mode {
 	case "md5":
-		return MD5Sum(value, salt)
+		return MD5Sum(buff)
 	case "sha1":
-		return Sha1Sum(value, salt)
-	case "sha1hmac":
-		return Sha1Hmac(value, salt)
+		return Sha1Sum(buff)
 	case "sha256":
-		return Sha256Hash(value, salt)
+		return Sha256Sum(buff)
+	case "crc32":
+		return CRC32Sum(buff)
 	default:
-		return ""
+		panic("error hash type")
 	}
-
 }
 
-func Sha256Hash(value string, salt string) string {
-	b := sha256.Sum256([]byte(value))
-	b = sha256.Sum256([]byte(hex.EncodeToString(b[:]) + salt))
+func Sha256Sum(value []byte) string {
+	b := sha256.Sum256(value)
 	return hex.EncodeToString(b[:])
 }
 
-func MD5Sum(value string, salt string) string {
-	hash := md5.Sum([]byte(value + salt))
+func MD5Sum(value []byte) string {
+	hash := md5.Sum(value)
 	return hex.EncodeToString(hash[:])
 }
 
-func Sha1Sum(value string, salt string) string {
+func Sha1Sum(value []byte) string {
 	h := sha1.New()
-	h.Write([]byte(value))
-	h.Write([]byte(salt))
+	h.Write(value)
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func Sha1Hmac(value string, salt string) string {
+func CRC32Sum(value []byte) string {
+	return fmt.Sprintf("%08x", crc32.ChecksumIEEE(value))
+}
+
+func Sha1Hmac(value, salt string) string {
 	h := hmac.New(sha1.New, []byte(salt))
 	h.Write([]byte(value))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-func Md5Hmac(value string, salt string) string {
+func Sha256Hmac(value, salt string) string {
+	h := hmac.New(sha256.New, []byte(salt))
+	h.Write([]byte(value))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+func Md5Hmac(value, salt string) string {
 	h := hmac.New(md5.New, []byte(salt))
 	h.Write([]byte(value))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))

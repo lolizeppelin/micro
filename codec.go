@@ -21,9 +21,10 @@ var (
 )
 
 const (
-	HeaderNode  = "X-Node-Id"     // 限定 node
-	TokenHeader = "X-Auth-Token"  // 认证头
-	TokenScope  = "X-Token-Scope" // token范围
+	HeaderNode  = "X-Node-Id"      // 限定 node
+	TokenHeader = "X-Auth-Token"   // 认证头
+	TokenScope  = "X-Token-Scope"  // token范围
+	TokenTenant = "X-Token-Tenant" // token限定租户范围
 	ContentType = "Content-Type"
 	Accept      = "Accept"
 )
