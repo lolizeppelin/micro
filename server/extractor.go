@@ -26,7 +26,7 @@ var (
 	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
 	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
 	// 组件非Restful方法
-	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s_|%s_|%s_|%s_|%s_)[A-Z].+?",
+	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s|%s|%s|%s|%s)_([A-Z].*)$",
 		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
 )
 
@@ -208,12 +208,12 @@ func (handler *Handler) UrlPath() (path, method string) {
 		path += handler.Collection
 		return
 	default: // 非restful接口
-		prefix := curdPrefix.FindString(handler.Method.Name)
-		if prefix == "" {
+		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)
+		if matches == nil {
 			path = ""
 			return
 		}
-		method = prefix[:len(prefix)-1]
+		method = matches[1]
 		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Name)
 	}
 	return
@@ -245,7 +245,8 @@ func isHandlerMethod(method reflect.Method) bool {
 		return false
 	}
 	// 第三个参数必须是指针类型或者bytes或者函数
-	if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func && mt.In(3) != typeOfBytes {
+	if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func &&
+		mt.In(3) != typeOfBytes {
 		return false
 	}
 
@@ -255,7 +256,8 @@ func isHandlerMethod(method reflect.Method) bool {
 			return false
 		}
 		// 返回参数必须是 prt/bytes, error结构
-		if mt.Out(1) != typeOfError || mt.Out(0) != typeOfBytes && mt.Out(0).Kind() != reflect.Ptr {
+		if mt.Out(1) != typeOfError || mt.Out(0) != typeOfBytes && mt.Out(0).Kind() != reflect.Ptr &&
+			mt.Out(0).Kind() != reflect.Slice {
 			return false
 		}
 	}
@@ -326,12 +328,13 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 			handler.Name = method.Name
 			handlers = append(handlers, handler)
 		default:
-			prefix := curdPrefix.FindString(method.Name)
-			if prefix == "" { // 非curd接口,没有前缀,网关接口
+			matches := curdPrefix.FindStringSubmatch(method.Name)
+			if matches == nil {
+				//if prefix == "" { // 非curd接口,没有前缀,网关接口
 				name := strings.ToLower(method.Name)
 				methods[name] = handler
 			} else { // 非restful 的curd接口
-				handler.Name = strings.ToLower(method.Name[len(prefix):])
+				handler.Name = strings.ToLower(matches[2])
 				handlers = append(handlers, handler)
 			}
 		}
