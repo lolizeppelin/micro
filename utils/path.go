@@ -62,8 +62,26 @@ func PathIsUnixSockFile(path string) (bool, error) {
 	return isUnixSocketFile(fileInfo), nil
 }
 
-func MakeDirs(path string) error {
-	return os.MkdirAll(path, 0755)
+func MakeDirs(path string, strict ...bool) error {
+	noExist := true
+	if len(strict) > 0 {
+		noExist = strict[0]
+	}
+
+	fileInfo, err := PathFileInfo(path)
+	if err != nil {
+		return err
+	}
+	if fileInfo == nil {
+		return os.Mkdir(path, 0755)
+	}
+	if noExist {
+		return errors.New("path already exist")
+	}
+	if fileInfo.IsDir() {
+		return nil
+	}
+	return errors.New("path is not directory")
 }
 
 func IsSafeUnixLikePath(path string) bool {

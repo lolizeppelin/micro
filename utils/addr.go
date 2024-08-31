@@ -5,8 +5,6 @@ import (
 	"golang.org/x/exp/slices"
 	"net"
 	"strings"
-
-	pkgErr "github.com/pkg/errors"
 )
 
 func VerifyAddr(listen string) bool {
@@ -40,7 +38,7 @@ func VerifyIP(addr string) (string, error) {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return "", pkgErr.Wrap(err, "failed to get interfaces")
+		return "", fmt.Errorf("failed to get interfaces: %s", err.Error())
 	}
 
 	for _, iface := range ifaces {

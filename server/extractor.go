@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
 	"github.com/lolizeppelin/micro/errors"
+	"github.com/lolizeppelin/micro/utils"
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/grpc/encoding"
@@ -21,10 +21,6 @@ import (
 )
 
 var (
-	typeOfError    = reflect.TypeOf((*error)(nil)).Elem()
-	typeOfBytes    = reflect.TypeOf(([]byte)(nil))
-	typeOfContext  = reflect.TypeOf(new(context.Context)).Elem()
-	typeOfProtoMsg = reflect.TypeOf(new(proto.Message)).Elem()
 	// 组件非Restful方法
 	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s|%s|%s|%s|%s)_([A-Z].*)$",
 		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
@@ -157,7 +153,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		}
 	}
 
-	if handler.Request == typeOfBytes {
+	if handler.Request == utils.TypeOfBytes {
 		arg = reflect.Zero(handler.Request)
 	} else {
 		arg = reflect.New(handler.Request.Elem())
@@ -237,7 +233,7 @@ func isHandlerMethod(method reflect.Method) bool {
 	}
 
 	// 第一个参数必须是context(0号参数是实例本身)
-	if t1 := mt.In(1); !t1.Implements(typeOfContext) {
+	if t1 := mt.In(1); !t1.Implements(utils.TypeOfContext) {
 		return false
 	}
 	// 第二个参数必须是指针类型
@@ -246,7 +242,7 @@ func isHandlerMethod(method reflect.Method) bool {
 	}
 	// 第三个参数必须是指针类型或者bytes或者函数
 	if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func &&
-		mt.In(3) != typeOfBytes {
+		mt.In(3) != utils.TypeOfBytes {
 		return false
 	}
 
@@ -256,7 +252,7 @@ func isHandlerMethod(method reflect.Method) bool {
 			return false
 		}
 		// 返回参数必须是 prt/bytes, error结构
-		if mt.Out(1) != typeOfError || mt.Out(0) != typeOfBytes && mt.Out(0).Kind() != reflect.Ptr &&
+		if mt.Out(1) != utils.TypeOfError || mt.Out(0) != utils.TypeOfBytes && mt.Out(0).Kind() != reflect.Ptr &&
 			mt.Out(0).Kind() != reflect.Slice {
 			return false
 		}
@@ -289,7 +285,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 			query := mt.In(2)
 			if query.Elem().NumField() > 0 {
 				handler.Query = query
-				buff, _ := jsonschema.Marshal(handler.Query)
+				buff, _ := jsonschema.Marshal(handler.Query, false)
 				loader := gojsonschema.NewBytesLoader(buff)
 				validator, _ := gojsonschema.NewSchema(loader)
 				handler.QueryValidator = validator
@@ -297,7 +293,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 		}
 		if mt.NumIn() == 4 {
 			handler.Request = mt.In(3)
-			if handler.Request == typeOfBytes {
+			if handler.Request == utils.TypeOfBytes {
 				metadata["req"] = "bytes"
 			} else if handler.Request.Kind() == reflect.Func {
 				// TODO 流式rpc支持
@@ -305,7 +301,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 				//metadata["req"] = "stream"
 			} else {
 				// 生成Validator
-				buff, _ := jsonschema.Marshal(handler.Request)
+				buff, _ := jsonschema.Marshal(handler.Request, true)
 				loader := gojsonschema.NewBytesLoader(buff)
 				validator, _ := gojsonschema.NewSchema(loader)
 				handler.BodyValidator = validator
@@ -314,9 +310,9 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 		}
 		if mt.NumOut() == 2 {
 			handler.Response = mt.Out(0)
-			if handler.Response == typeOfBytes {
+			if handler.Response == utils.TypeOfBytes {
 				metadata["res"] = "bytes"
-			} else if handler.Response.Implements(typeOfProtoMsg) {
+			} else if handler.Response.Implements(utils.TypeOfProtoMsg) {
 				metadata["res"] = "proto"
 			} else {
 				metadata["res"] = "json"
