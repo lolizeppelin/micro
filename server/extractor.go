@@ -177,31 +177,37 @@ func (handler *Handler) Match(request, response string) bool {
 /*
 UrlPath 获取api path
 */
-func (handler *Handler) UrlPath() (path, method string) {
+func (handler *Handler) UrlPath() (resource, path, method string) {
 	path = "/restful/"
 	switch handler.Name {
 	case "Get":
 		method = http.MethodGet
+		resource = handler.Resource
 		path += fmt.Sprintf("%s/:id", handler.Resource)
 	case "List":
-		path += handler.Collection
 		method = http.MethodGet
+		resource = handler.Collection
+		path += handler.Collection
 		return
 	case "Create":
 		method = http.MethodPost
+		resource = handler.Collection
 		path += handler.Collection
 		return
 	case "Update":
 		method = http.MethodPut
+		resource = handler.Resource
 		path += fmt.Sprintf("%s/:id", handler.Resource)
 		return
 	case "Patch":
 		method = http.MethodPatch
+		resource = handler.Collection
 		path += handler.Collection
 		return
 	case "Delete":
 		method = http.MethodPatch
-		path += handler.Collection
+		resource = handler.Resource
+		path += handler.Resource
 		return
 	default: // 非restful接口
 		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)
@@ -210,7 +216,8 @@ func (handler *Handler) UrlPath() (path, method string) {
 			return
 		}
 		method = matches[1]
-		path = fmt.Sprintf("/%s/%s", handler.Resource, handler.Name)
+		resource = fmt.Sprintf("%s/%s", handler.Resource, handler.Name)
+		path = fmt.Sprintf("/%s", resource)
 	}
 	return
 }

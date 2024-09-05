@@ -40,6 +40,25 @@ func (v Version) Version(patch ...bool) string {
 	return fmt.Sprintf("%d.%d", v.major, v.minor)
 }
 
+func (v Version) Compare(version Version) int {
+	if v.major > version.major {
+		return 1
+	} else if v.major < v.major {
+		return -1
+	}
+	if v.minor > version.minor {
+		return 1
+	} else if v.minor < v.minor {
+		return -1
+	}
+	if v.patch > version.patch {
+		return 1
+	} else if v.patch < v.patch {
+		return -1
+	}
+	return 0
+}
+
 // MarshalJSON Implementing the json.Marshaler interface
 func (v Version) MarshalJSON() ([]byte, error) {
 	// Create a map to hold the JSON representation
