@@ -5,13 +5,10 @@ import (
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
+	"google.golang.org/grpc"
 	"net"
 	"sync"
 	"time"
-
-	"github.com/lolizeppelin/micro/registry"
-
-	"google.golang.org/grpc"
 )
 
 var (
@@ -30,14 +27,14 @@ type RPCServer struct {
 	started    bool
 	registered bool
 
-	opts    *options
+	opts    *Options
 	service *Service
 
 	// grpc server
 	server *grpc.Server
 }
 
-func newGRPCServer(opts *options) *RPCServer {
+func newGRPCServer(opts *Options) *RPCServer {
 
 	// create a grpc server
 	srv := &RPCServer{
@@ -193,20 +190,7 @@ func (g *RPCServer) Stop() error {
 	return err
 }
 
-func NewServer(o ...Option) (*RPCServer, error) {
-
-	opts := &options{
-		Id:            1,
-		Name:          "server",
-		MaxMsgSize:    DefaultMaxMsgSize,
-		Interval:      time.Second * 30,
-		RegisterCheck: registry.DefaultRegisterCheck,
-	}
-
-	for _, f := range o {
-		f(opts)
-	}
-
+func NewServer(opts *Options) (*RPCServer, error) {
 	if opts.Listener == nil {
 		ls, err := net.Listen("tcp", "127.0.0.1:1780")
 		if err != nil {

@@ -94,6 +94,12 @@ func PoolTTL(d time.Duration) Option {
 	}
 }
 
+func Broker(b broker.Broker) Option {
+	return func(o *Options) {
+		o.Broker = b
+	}
+}
+
 // Adds a Wrapper to a list of options passed into the client.
 func Wrap(w Wrapper) Option {
 	return func(o *Options) {

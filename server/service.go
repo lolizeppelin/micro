@@ -6,7 +6,7 @@ import (
 )
 
 type Service struct {
-	opts       *options
+	opts       *Options
 	services   map[string]map[string]*Handler
 	endpoints  []*micro.Endpoint
 	registry   *micro.Service
@@ -21,7 +21,7 @@ func (s *Service) Handler(service string, method string) *Handler {
 	return sv[method]
 }
 
-func newService(opts *options) *Service {
+func newService(opts *Options) *Service {
 
 	services, _ := ExtractComponents(opts.Components)
 	endpoints := extractEndpoints(services)

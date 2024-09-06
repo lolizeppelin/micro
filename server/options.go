@@ -4,13 +4,14 @@ import (
 	"context"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/broker"
+	"github.com/lolizeppelin/micro/registry"
 	"google.golang.org/grpc"
 	"net"
 	"sync"
 	"time"
 )
 
-type options struct {
+type Options struct {
 	//Broker broker.DefaultBroker,
 	Id            uint32
 	Name          string
@@ -30,36 +31,35 @@ type options struct {
 	Metadata      map[string]string
 }
 
-type Option func(*options)
+type Option func(*Options)
 
 func WithServerId(id int32) Option {
 	if id <= 0 || id > MaxServerSN {
 		panic("server id over size")
 	}
-	return func(o *options) {
+	return func(o *Options) {
 		o.Id = uint32(id)
 	}
 }
 
 // WithName TODO 正则校验
 func WithName(name string) Option {
-
 	if name == "" {
 		panic("name value error")
 	}
-	return func(o *options) {
+	return func(o *Options) {
 		o.Name = name
 	}
 }
 
 func WithVersion(version *micro.Version) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Version = version
 	}
 }
 
 func WithMax(version *micro.Version) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		if o.Version != nil && o.Version.Compare(*version) >= 0 {
 			panic("max version value error")
 		}
@@ -68,7 +68,7 @@ func WithMax(version *micro.Version) Option {
 }
 
 func WithMin(version *micro.Version) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		if o.Version != nil && o.Version.Compare(*version) <= 0 {
 			panic("min version value error")
 		}
@@ -80,7 +80,7 @@ func WithMaxMsgSize(size int) Option {
 	if size <= 1024 {
 		panic("grpc buff size error")
 	}
-	return func(o *options) {
+	return func(o *Options) {
 		o.MaxMsgSize = size
 	}
 }
@@ -89,56 +89,67 @@ func WithRegisterCheckInterval(seconds time.Duration) Option {
 	if seconds < 5 {
 		panic("register check interval error")
 	}
-	return func(o *options) {
+	return func(o *Options) {
 		o.Interval = seconds * time.Second
 	}
 }
 
 func WithListener(listener net.Listener) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Listener = listener
 	}
 }
 
 func WithBroker(broker broker.Broker) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Broker = broker
 	}
 }
 
 func WithRegistry(registry micro.Registry) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Registry = registry
 	}
 }
 
 func WithComponents(components ...micro.Component) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Components = components
 	}
 }
 
 func WithGrpcOptions(opts ...grpc.ServerOption) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.GrpcOpts = opts
 	}
 }
 
 func WithRegisterCheck(f func(context.Context) error) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.RegisterCheck = f
 	}
 }
 
 func WithWaitGroup(wg *sync.WaitGroup) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.WaitGroup = wg
 	}
 }
 
 // WithMetadata associated with the server
 func WithMetadata(md map[string]string) Option {
-	return func(o *options) {
+	return func(o *Options) {
 		o.Metadata = md
 	}
+}
+
+func NewOptions() Options {
+	return Options{
+		Id:            1,
+		Name:          "server",
+		MaxMsgSize:    DefaultMaxMsgSize,
+		Interval:      time.Second * 30,
+		RegisterCheck: registry.DefaultRegisterCheck,
+	}
+
 }
