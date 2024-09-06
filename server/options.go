@@ -14,7 +14,6 @@ type options struct {
 	//Broker broker.DefaultBroker,
 	Id            uint32
 	Name          string
-	Address       string
 	MaxMsgSize    int
 	Version       *micro.Version // 当前服务版本号
 	Min           *micro.Version // 支持的最小版本(默认当前版本)
@@ -74,12 +73,6 @@ func WithMin(version *micro.Version) Option {
 			panic("min version value error")
 		}
 		o.Min = version
-	}
-}
-
-func WithAddress(address string) Option {
-	return func(o *options) {
-		o.Address = address
 	}
 }
 

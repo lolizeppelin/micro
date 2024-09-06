@@ -5,7 +5,6 @@ import (
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
-	"github.com/lolizeppelin/micro/utils"
 	"net"
 	"sync"
 	"time"
@@ -74,7 +73,7 @@ func (g *RPCServer) Start() error {
 
 	config := g.opts
 
-	log.Infof("Server [grpc] Listening on %s", g.opts.Address)
+	log.Infof("Server [grpc] Listening on %s", g.opts.Listener.Addr())
 
 	go func() {
 		if err := g.server.Serve(g.opts.Listener); err != nil {
@@ -214,15 +213,6 @@ func NewServer(o ...Option) (*RPCServer, error) {
 			return nil, err
 		}
 		opts.Listener = ls
-	}
-
-	if opts.Address == "" {
-		address := opts.Listener.Addr().String()
-		opts.Address = address
-	}
-
-	if !utils.VerifyAddr(opts.Address) {
-		//return nil, fmt.Errorf("address value error")
 	}
 
 	if opts.WaitGroup == nil {

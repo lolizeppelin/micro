@@ -6,11 +6,10 @@ import (
 )
 
 type Service struct {
-	opts      *options
-	services  map[string]map[string]*Handler
-	endpoints []*micro.Endpoint
-	registry  *micro.Service
-	//subscribers map[string]broker.Handler
+	opts       *options
+	services   map[string]map[string]*Handler
+	endpoints  []*micro.Endpoint
+	registry   *micro.Service
 	subscribed map[string]broker.Subscriber
 }
 
@@ -32,7 +31,7 @@ func newService(opts *options) *Service {
 		Version:  *opts.Version, // 节点版本号
 		Max:      opts.Max,
 		Min:      opts.Min,
-		Address:  opts.Address,
+		Address:  opts.Listener.Addr().String(),
 		Metadata: opts.Metadata,
 	}
 
