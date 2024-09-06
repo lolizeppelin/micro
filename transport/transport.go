@@ -21,9 +21,9 @@ type Transport interface {
 
 // Message is a broker message.
 type Message struct {
-	Header map[string]string
-	Query  url.Values
-	Body   []byte
+	Header map[string]string `msgpack:"headers,omitempty"`
+	Query  url.Values        `msgpack:"query,omitempty"`
+	Body   []byte            `msgpack:"body,omitempty"`
 }
 
 type Socket interface {

@@ -36,7 +36,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	protocol := request.Protocols()
 	headers[micro.ContentType] = protocol.Reqeust
 	headers[transport.Service] = request.Service()
-	headers[transport.Method] = request.Method()
+	headers[transport.Method] = request.Method() // http method
 	headers[transport.Endpoint] = request.Endpoint()
 
 	msg := &transport.Message{
@@ -57,7 +57,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 		return fmt.Errorf("failed to cast to bool")
 	}
 	if !l {
-		if err := r.opts.Broker.Connect(); err != nil {
+		if err = r.opts.Broker.Connect(); err != nil {
 			return exc.InternalServerError("micro.rpc.publish", err.Error())
 		}
 		r.once.Store(true)

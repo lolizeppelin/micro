@@ -72,9 +72,6 @@ func Secure(b bool) Option {
 
 type SubscribeOptions struct {
 
-	// Other options for implementations of the interface
-	// can be stored in a context
-	Context context.Context
 	// Subscribers with the same queue name
 	// will create a shared subscription where each
 	// receives a subset of messages.
@@ -85,8 +82,8 @@ type SubscribeOptions struct {
 	AutoAck bool
 }
 
-// Queue sets the name of the queue to share messages on.
-func Queue(name string) SubscribeOption {
+// WithQueue sets the name of the queue to share messages on.
+func WithQueue(name string) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		o.Queue = name
 	}
@@ -110,11 +107,4 @@ func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
 	}
 
 	return opt
-}
-
-// SubscribeContext set context.
-func SubscribeContext(ctx context.Context) SubscribeOption {
-	return func(o *SubscribeOptions) {
-		o.Context = ctx
-	}
 }

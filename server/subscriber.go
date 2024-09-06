@@ -22,7 +22,9 @@ func (s *Service) dispatch(event broker.Event) (err error) {
 
 	defer func() {
 		wg.Done()
-
+		if e := event.Ack(); e != nil {
+			log.Errorf("brcker ack failed： %s", err.Error())
+		}
 		if r := recover(); r != nil {
 			log.Errorf("panic recovered: \n%s", string(debug.Stack()))
 			err = errors.InternalServerError("go.micro.server", "panic recovered: %v", r)

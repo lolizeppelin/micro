@@ -152,10 +152,10 @@ func (g *RPCServer) Start() error {
 		}
 
 		if config.Broker != nil {
-			log.Infof("broker [%s] Disconnected from %s", config.Broker.String(), config.Broker.Address())
+			log.Infof("broker Disconnected")
 			// disconnect broker
 			if err = config.Broker.Disconnect(); err != nil {
-				log.Errorf("broker [%s] disconnect error: %v", config.Broker.String(), err)
+				log.Errorf("broker disconnect error: %v", err)
 			}
 		}
 
