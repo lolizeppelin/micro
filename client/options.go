@@ -183,6 +183,8 @@ type CallOptions struct {
 	ServiceToken bool
 	// ConnClose sets the Connection: close header.
 	ConnClose bool
+	// Internal RPC
+	Internal bool
 }
 
 func WithSelectFilters(filters ...selector.Filter) CallOption {
@@ -263,5 +265,11 @@ func WithServiceToken() CallOption {
 func WithNode(node string) CallOption {
 	return func(o *CallOptions) {
 		o.Node = node
+	}
+}
+
+func WitInternal(internal bool) CallOption {
+	return func(o *CallOptions) {
+		o.Internal = internal
 	}
 }

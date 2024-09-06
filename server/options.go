@@ -17,6 +17,8 @@ type options struct {
 	Address       string
 	MaxMsgSize    int
 	Version       *micro.Version // 当前服务版本号
+	Min           *micro.Version // 支持的最小版本(默认当前版本)
+	Max           *micro.Version // 支持的最大版本(默认当前版本)
 	Interval      time.Duration
 	Listener      net.Listener
 	Broker        broker.Broker
@@ -54,6 +56,24 @@ func WithName(name string) Option {
 func WithVersion(version *micro.Version) Option {
 	return func(o *options) {
 		o.Version = version
+	}
+}
+
+func WithMax(version *micro.Version) Option {
+	return func(o *options) {
+		if o.Version != nil && o.Version.Compare(*version) >= 0 {
+			panic("max version value error")
+		}
+		o.Max = version
+	}
+}
+
+func WithMin(version *micro.Version) Option {
+	return func(o *options) {
+		if o.Version != nil && o.Version.Compare(*version) <= 0 {
+			panic("min version value error")
+		}
+		o.Min = version
 	}
 }
 

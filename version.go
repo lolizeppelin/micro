@@ -8,53 +8,40 @@ import (
 )
 
 type Version struct {
-	major int
-	minor int
-	patch int
+	Major int `json:"major,omitempty"`
+	Minor int `json:"minor,omitempty"`
+	Patch int `json:"patch,omitempty"`
 }
 
 func (v Version) Main() string {
-	return utils.UnsafeToString(v.major)
-}
-
-// Major 主版本
-func (v Version) Major() int {
-	return v.major
-}
-
-// Minor 次版本
-func (v Version) Minor() int {
-	return v.minor
-}
-
-// Patch 次版本
-func (v Version) Patch() int {
-	return v.patch
+	return utils.UnsafeToString(v.Minor)
 }
 
 // Version 版本号字符串,参数用于是否输出patch版本
 func (v Version) Version(patch ...bool) string {
 	if len(patch) > 0 && patch[0] {
-		return fmt.Sprintf("%d.%d.%d", v.major, v.minor, v.patch)
+		return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 	}
-	return fmt.Sprintf("%d.%d", v.major, v.minor)
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor)
 }
 
-func (v Version) Compare(version Version) int {
-	if v.major > version.major {
+func (v Version) Compare(version Version, patch ...bool) int {
+	if v.Major > version.Major {
 		return 1
-	} else if v.major < v.major {
+	} else if v.Major < v.Major {
 		return -1
 	}
-	if v.minor > version.minor {
+	if v.Minor > version.Minor {
 		return 1
-	} else if v.minor < v.minor {
+	} else if v.Minor < v.Minor {
 		return -1
 	}
-	if v.patch > version.patch {
-		return 1
-	} else if v.patch < v.patch {
-		return -1
+	if len(patch) > 0 && patch[0] {
+		if v.Patch > version.Patch {
+			return 1
+		} else if v.Patch < v.Patch {
+			return -1
+		}
 	}
 	return 0
 }
@@ -63,9 +50,9 @@ func (v Version) Compare(version Version) int {
 func (v Version) MarshalJSON() ([]byte, error) {
 	// Create a map to hold the JSON representation
 	m := map[string]int{
-		"major": v.major,
-		"minor": v.minor,
-		"patch": v.patch,
+		"major": v.Major,
+		"minor": v.Minor,
+		"patch": v.Patch,
 	}
 	// Use the standard library to marshal the map to JSON
 	return json.Marshal(m)
@@ -111,8 +98,9 @@ func NewVersion(v string) (*Version, error) {
 	}
 
 	return &Version{
-		major: major,
-		minor: minor,
+		Major: major,
+		Minor: minor,
+		Patch: patch,
 	}, nil
 
 }

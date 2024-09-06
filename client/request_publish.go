@@ -18,7 +18,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	}
 	node := callOpts.Node
 	// 有node id或版本限定,通过过滤器筛选node,设置节点
-	if node == "" && request.Version().Minor() > 0 {
+	if node == "" && request.Version() != nil {
 		next, err := r.next(request, callOpts)
 		if err != nil {
 			return err

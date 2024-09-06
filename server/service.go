@@ -29,7 +29,9 @@ func newService(opts *options) *Service {
 
 	node := &micro.Node{
 		Id:       SNBase62(opts.Id),
-		Version:  opts.Version.Version(), // 节点版本号
+		Version:  *opts.Version, // 节点版本号
+		Max:      opts.Max,
+		Min:      opts.Min,
 		Address:  opts.Address,
 		Metadata: opts.Metadata,
 	}
@@ -46,7 +48,7 @@ func newService(opts *options) *Service {
 		endpoints: endpoints,
 		registry: &micro.Service{
 			Name:      opts.Name,
-			Version:   opts.Version.Main(), // 服务主版本号
+			Version:   opts.Version.Major,
 			Nodes:     []*micro.Node{node},
 			Endpoints: endpoints,
 			Metadata:  map[string]string{},

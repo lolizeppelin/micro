@@ -22,7 +22,7 @@ import (
 
 var (
 	// 组件非Restful方法
-	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s|%s|%s|%s|%s)_([A-Z].*)$",
+	curdPrefix, _ = regexp.Compile(fmt.Sprintf("^(%s|%s|%s|%s|%s|RPC)_([A-Z].*)$",
 		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete))
 )
 
@@ -93,6 +93,7 @@ type Handler struct {
 	BodyValidator  *gojsonschema.Schema // 请求载荷校验器
 	Response       reflect.Type         // 返回参数
 	Metadata       map[string]string    // 元数据
+	Internal       bool                 // 内部rpc，不对外
 }
 
 /*
@@ -327,18 +328,27 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 		}
 		handler.Metadata = metadata
 		switch method.Name {
-		case "Get", "List", "Create", "Update", "Patch", "Delete": // restful 接口
+		case "Get", "List", "Create", "Update", "Patch", "Delete": // restful curd接口
 			handler.Name = method.Name
 			handlers = append(handlers, handler)
 		default:
 			matches := curdPrefix.FindStringSubmatch(method.Name)
-			if matches == nil {
-				//if prefix == "" { // 非curd接口,没有前缀,网关接口
+			if matches == nil { // 没有前缀,网关接口
 				name := strings.ToLower(method.Name)
+				handler.Name = name
 				methods[name] = handler
-			} else { // 非restful 的curd接口
-				handler.Name = strings.ToLower(matches[2])
-				handlers = append(handlers, handler)
+			} else {
+				name := strings.ToLower(matches[2])
+				if _, ok := methods[name]; ok {
+					panic(fmt.Sprintf("duplicate name %s.%s", component.Name(), name))
+				}
+				handler.Name = name
+				if matches[1] == "RPC" { // 内部rpc接口
+					handler.Internal = true
+					methods[name] = handler
+				} else { // 非标准请求接口
+					handlers = append(handlers, handler)
+				}
 			}
 		}
 	}
@@ -376,6 +386,7 @@ func extractEndpoints(services map[string]map[string]*Handler) (endpoints []*mic
 			endpoint := &micro.Endpoint{
 				Name:     fmt.Sprintf("%s.%s", name, method),
 				Metadata: handler.Metadata,
+				Internal: handler.Internal,
 			}
 			endpoints = append(endpoints, endpoint)
 		}
