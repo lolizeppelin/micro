@@ -1,9 +1,9 @@
 package broker
 
 import (
-	"context"
 	"crypto/tls"
 	"github.com/lolizeppelin/micro"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type Options struct {
@@ -12,11 +12,10 @@ type Options struct {
 	Registry micro.Registry
 	// Other options for implementations of the interface
 	// can be stored in a context
-	Context context.Context
 
 	// Handler executed when error happens in broker mesage
 	// processing
-	ErrorHandler Handler
+	ErrorHandler func(uint8, *kgo.Record, error)
 
 	TLSConfig *tls.Config
 	Address   []string
@@ -27,9 +26,10 @@ type Option func(*Options)
 
 func NewOptions(opts ...Option) *Options {
 	options := Options{
-		Context: context.Background(),
+		ErrorHandler: func(u uint8, record *kgo.Record, err error) {
+			return
+		},
 	}
-
 	for _, o := range opts {
 		o(&options)
 	}
@@ -49,9 +49,9 @@ func Address(address ...string) Option {
 
 // ErrorHandler will catch all broker errors that cant be handled
 // in normal way, for example Codec errors.
-func ErrorHandler(h Handler) Option {
+func ErrorHandler(fallback func(uint8, *kgo.Record, error)) Option {
 	return func(o *Options) {
-		o.ErrorHandler = h
+		o.ErrorHandler = fallback
 	}
 }
 

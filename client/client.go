@@ -33,8 +33,7 @@ type Option func(*Options)
 // CallOption used by Call or Stream.
 type CallOption func(*CallOptions)
 
-func NewClient(opt ...Option) (Client, error) {
-	opts := NewOptions(opt...)
+func NewClient(opts Options) (Client, error) {
 	if opts.Registry == nil {
 		return nil, fmt.Errorf("not registry found")
 	}

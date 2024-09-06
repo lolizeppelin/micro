@@ -11,7 +11,6 @@ import (
 type KafkaBroker struct {
 	producer *kgo.Client
 	opts     *Options
-	fallback func(uint8, *kgo.Record, error)
 }
 
 func (k *KafkaBroker) Connect() error {
@@ -51,7 +50,7 @@ func (k *KafkaBroker) Publish(ctx context.Context, topic string, msg *transport.
 	}
 
 	k.producer.TryProduce(ctx, record, func(record *kgo.Record, err error) {
-		k.fallback(0, record, err)
+		k.opts.ErrorHandler(0, record, err)
 	})
 	return nil
 }
@@ -69,16 +68,15 @@ func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...Subscribe
 		topic:    topic,
 		client:   client,
 		handler:  handler,
-		fallback: k.fallback,
+		fallback: k.opts.ErrorHandler,
 		stop:     make(chan struct{}),
 	}
 	subscriber.start()
 	return subscriber, nil
 }
 
-func NewKafkaBroker(options *Options, fallback func(uint8, *kgo.Record, error)) *KafkaBroker {
+func NewKafkaBroker(options *Options) *KafkaBroker {
 	return &KafkaBroker{
-		opts:     options,
-		fallback: fallback,
+		opts: options,
 	}
 }
