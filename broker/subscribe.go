@@ -4,24 +4,24 @@ import (
 	"context"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/twmb/franz-go/pkg/kgo"
-	"github.com/vmihailenco/msgpack/v5"
 	"sync"
 )
 
-type kafkaSubscriber struct {
-	topic    string
-	client   *kgo.Client
-	handler  Handler
-	stop     chan struct{}
-	fallback func(uint8, *kgo.Record, error)
-	wg       *sync.WaitGroup
+type KafkaSubscriber struct {
+	topic     string
+	client    *kgo.Client
+	handler   Handler
+	stop      chan struct{}
+	fallback  func(uint8, *kgo.Record, error)
+	wg        *sync.WaitGroup
+	unmarshal func([]byte) (*transport.Message, error)
 }
 
-func (s *kafkaSubscriber) Topic() string {
+func (s *KafkaSubscriber) Topic() string {
 	return s.topic
 }
 
-func (s *kafkaSubscriber) Unsubscribe() error {
+func (s *KafkaSubscriber) Unsubscribe() error {
 	ctx := context.Background()
 	s.client.Close()
 	s.wg.Wait() // 等待循环推出
@@ -35,7 +35,7 @@ func (s *kafkaSubscriber) Unsubscribe() error {
 
 }
 
-func (s *kafkaSubscriber) start() {
+func (s *KafkaSubscriber) start() {
 	ctx := context.Background()
 	s.wg.Add(1)
 STOP:
@@ -51,15 +51,15 @@ STOP:
 	s.wg.Done()
 }
 
-func (s *kafkaSubscriber) publish(fetches kgo.Fetches) int {
+func (s *KafkaSubscriber) publish(fetches kgo.Fetches) int {
 	records := fetches.Records()
 	if len(records) <= 0 {
 		return 0
 	}
 	for _, record := range records {
 		// resource := string(record.Key)
-		msg := new(transport.Message)
-		if err := msgpack.Unmarshal(record.Value, msg); err != nil {
+		msg, err := s.unmarshal(record.Value)
+		if err != nil {
 			s.fallback(1, record, err)
 			continue
 		}

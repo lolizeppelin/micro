@@ -2,14 +2,13 @@ package broker
 
 import (
 	"crypto/tls"
-	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/transport"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Options struct {
 
-	// Registry used for clustering
-	Registry micro.Registry
 	// Other options for implementations of the interface
 	// can be stored in a context
 
@@ -24,11 +23,21 @@ type Options struct {
 
 type Option func(*Options)
 
+func _unmarshal(b []byte) (*transport.Message, error) {
+	msg := new(transport.Message)
+	if err := msgpack.Unmarshal(b, msg); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
+func _errHandler(u uint8, record *kgo.Record, err error) {
+	return
+}
+
 func NewOptions(opts ...Option) *Options {
 	options := Options{
-		ErrorHandler: func(u uint8, record *kgo.Record, err error) {
-			return
-		},
+		ErrorHandler: _errHandler,
 	}
 	for _, o := range opts {
 		o(&options)
@@ -55,12 +64,6 @@ func ErrorHandler(fallback func(uint8, *kgo.Record, error)) Option {
 	}
 }
 
-func Registry(r micro.Registry) Option {
-	return func(o *Options) {
-		o.Registry = r
-	}
-}
-
 // Secure communication with the broker.
 func Secure(b bool) Option {
 	return func(o *Options) {
@@ -80,6 +83,24 @@ type SubscribeOptions struct {
 	// AutoAck defaults to true. When a handler returns
 	// with a nil error the message is acked.
 	AutoAck bool
+
+	// 解析
+	Unmarshal func([]byte) (*transport.Message, error)
+}
+
+type SubscribeOption func(*SubscribeOptions)
+
+func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
+	opt := SubscribeOptions{
+		AutoAck:   true,
+		Unmarshal: _unmarshal,
+	}
+
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	return opt
 }
 
 // WithQueue sets the name of the queue to share messages on.
@@ -95,16 +116,8 @@ func DisableAutoAck() SubscribeOption {
 	}
 }
 
-type SubscribeOption func(*SubscribeOptions)
-
-func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
-	opt := SubscribeOptions{
-		AutoAck: true,
+func UnmarshalHander(unmarshal func([]byte) (*transport.Message, error)) SubscribeOption {
+	return func(o *SubscribeOptions) {
+		o.Unmarshal = unmarshal
 	}
-
-	for _, o := range opts {
-		o(&opt)
-	}
-
-	return opt
 }

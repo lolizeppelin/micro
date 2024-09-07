@@ -36,7 +36,6 @@ func NewKafkaProducer(address []string, autoAck ...bool) (*kgo.Client, error) {
 	if len(autoAck) > 0 {
 		AutoAck = autoAck[0]
 	}
-
 	if AutoAck {
 		options = append(options, kgo.RequiredAcks(kgo.NoAck()))
 	}

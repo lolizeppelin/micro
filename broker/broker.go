@@ -56,20 +56,18 @@ func (k *KafkaBroker) Publish(ctx context.Context, topic string, msg *transport.
 }
 
 func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...SubscribeOption) (Subscriber, error) {
-	if k.producer == nil {
-		return nil, fmt.Errorf("producer not connect")
-	}
 	options := NewSubscribeOptions(opts...)
 	client, err := NewKafkaConsumer(k.opts.Address, topic, options)
 	if err != nil {
 		return nil, err
 	}
-	subscriber := &kafkaSubscriber{
-		topic:    topic,
-		client:   client,
-		handler:  handler,
-		fallback: k.opts.ErrorHandler,
-		stop:     make(chan struct{}),
+	subscriber := &KafkaSubscriber{
+		topic:     topic,
+		client:    client,
+		handler:   handler,
+		fallback:  k.opts.ErrorHandler,
+		unmarshal: options.Unmarshal,
+		stop:      make(chan struct{}),
 	}
 	subscriber.start()
 	return subscriber, nil
