@@ -2,17 +2,19 @@ package broker
 
 import (
 	"crypto/tls"
+	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Options struct {
-
+	// Registry s
+	Registry micro.Registry
 	// Other options for implementations of the interface
 	// can be stored in a context
 
-	// Handler executed when error happens in broker mesage
+	// Handler executed when error happens in broker message
 	// processing
 	ErrorHandler func(uint8, *kgo.Record, error)
 
@@ -44,6 +46,12 @@ func NewOptions(opts ...Option) *Options {
 	}
 
 	return &options
+}
+
+func Registry(registry micro.Registry) Option {
+	return func(o *Options) {
+		o.Registry = registry
+	}
 }
 
 // Address Address address sets the host addresses to be used by the broker.
