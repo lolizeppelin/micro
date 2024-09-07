@@ -19,7 +19,7 @@ type EtcdConfig struct {
 	watchers *wMap
 }
 
-func NewEtcdConfig(client *clientv3.Client, prefix ...string) (*EtcdConfig, error) {
+func NewEtcdConfig(client *clientv3.Client, prefix ...string) *EtcdConfig {
 	p := DefaultPrefix
 	if len(prefix) > 0 && prefix[0] != "" {
 		p = prefix[0]
@@ -37,7 +37,7 @@ func NewEtcdConfig(client *clientv3.Client, prefix ...string) (*EtcdConfig, erro
 		kv:       c,
 		watcher:  w,
 		watchers: newMap(),
-	}, nil
+	}
 
 }
 

@@ -143,6 +143,12 @@ func WithMetadata(md map[string]string) Option {
 	}
 }
 
+func WithBrokerOpts(options []broker.SubscribeOption) Option {
+	return func(o *Options) {
+		o.BrokerOpts = options
+	}
+}
+
 func NewOptions() Options {
 	return Options{
 		Id:            1,

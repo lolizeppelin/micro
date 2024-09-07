@@ -73,7 +73,8 @@ func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...Subscribe
 	return subscriber, nil
 }
 
-func NewKafkaBroker(options *Options) *KafkaBroker {
+func NewKafkaBroker(opts ...Option) *KafkaBroker {
+	options := NewOptions(opts...)
 	return &KafkaBroker{
 		opts: options,
 	}

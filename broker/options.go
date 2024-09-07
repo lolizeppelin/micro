@@ -103,11 +103,9 @@ func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
 		AutoAck:   true,
 		Unmarshal: _unmarshal,
 	}
-
 	for _, o := range opts {
 		o(&opt)
 	}
-
 	return opt
 }
 
