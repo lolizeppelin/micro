@@ -56,7 +56,6 @@ func NewClient(opts Options) (Client, error) {
 		pool: p,
 		seq:  0,
 	}
-	rc.once.Store(false)
 
 	c := Client(rc)
 
@@ -68,7 +67,7 @@ func NewClient(opts Options) (Client, error) {
 	return c, nil
 }
 
-func NewRequest(target micro.Target, request interface{}) micro.Request {
+func NewRequest(target micro.Target, payload interface{}) micro.Request {
 
 	return &rpcRequest{
 		service:   target.Service,
@@ -77,7 +76,7 @@ func NewRequest(target micro.Target, request interface{}) micro.Request {
 		query:     target.Query,
 		protocols: target.Protocols,
 		version:   target.Version,
-		body:      request,
+		body:      payload,
 	}
 }
 

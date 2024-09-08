@@ -6,7 +6,6 @@ import (
 
 var (
 	DefaultCodecs = map[string]string{
-
 		"text/html":              "application/grpc+bytes",
 		"text/plain":             "application/grpc+bytes",
 		"application/grpc+json":  "application/grpc+json",
@@ -18,6 +17,8 @@ var (
 		"application/protobuf":     "application/grpc+proto",
 		"application/octet-stream": "application/grpc+bytes",
 	}
+
+	DefaultContentType = "application/grpc+bytes"
 )
 
 const (
@@ -42,4 +43,11 @@ type Protocols struct {
 	Accept      string // 原始 Accept
 	Reqeust     string // 请求
 	Response    string // 返回
+}
+
+func GetProtocol(ContentType string) string {
+	if protocol, ok := DefaultCodecs[ContentType]; ok {
+		return protocol
+	}
+	return DefaultContentType
 }

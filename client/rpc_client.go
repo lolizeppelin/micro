@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
-	"sync/atomic"
 	"time"
 
 	exc "github.com/lolizeppelin/micro/errors"
@@ -15,7 +14,6 @@ import (
 
 type rpcClient struct {
 	opts Options
-	once atomic.Value
 	pool *transport.Pool
 
 	seq uint64

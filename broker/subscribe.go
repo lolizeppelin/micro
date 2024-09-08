@@ -57,7 +57,6 @@ func (s *KafkaSubscriber) publish(fetches kgo.Fetches) int {
 		return 0
 	}
 	for _, record := range records {
-		// resource := string(record.Key)
 		msg, err := s.unmarshal(record.Value)
 		if err != nil {
 			s.fallback(1, record, err)
@@ -66,7 +65,7 @@ func (s *KafkaSubscriber) publish(fetches kgo.Fetches) int {
 		event := &kafkaEvent{
 			msg: msg,
 		}
-		if err := s.handler(event); err != nil {
+		if err = s.handler(event); err != nil {
 			s.fallback(2, record, err)
 		}
 

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
@@ -12,6 +11,7 @@ import (
 
 func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...CallOption) error {
 
+	// copy
 	callOpts := r.opts.CallOptions
 	for _, opt := range opts {
 		opt(&callOpts)
@@ -44,24 +44,12 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	}
 
 	body := request.Body()
-
 	b, err := codec.Marshal(protocol.Reqeust, body)
 	if err != nil {
 		return exc.InternalServerError("micro.rpc.publish", err.Error())
 	}
 	// set the body
 	msg.Body = b
-
-	l, ok := r.once.Load().(bool)
-	if !ok {
-		return fmt.Errorf("failed to cast to bool")
-	}
-	if !l {
-		if err = r.opts.Broker.Connect(); err != nil {
-			return exc.InternalServerError("micro.rpc.publish", err.Error())
-		}
-		r.once.Store(true)
-	}
 
 	return r.opts.Broker.Publish(ctx, topic, msg)
 
