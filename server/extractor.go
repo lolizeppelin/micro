@@ -206,9 +206,9 @@ func (handler *Handler) UrlPath() (resource, path, method string) {
 		path += handler.Collection
 		return
 	case "Delete":
-		method = http.MethodPatch
+		method = http.MethodDelete
 		resource = handler.Resource
-		path += handler.Resource
+		path += fmt.Sprintf("%s/:id", handler.Resource)
 		return
 	default: // 非restful接口
 		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)

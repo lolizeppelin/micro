@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
+	"github.com/lolizeppelin/micro/utils"
 	"golang.org/x/exp/maps"
 	"path"
 	"sort"
@@ -265,19 +266,20 @@ func (e *etcdRegistry) GetService(name string) ([]*micro.Service, error) {
 	serviceMap := map[string]*micro.Service{}
 
 	for _, n := range rsp.Kvs {
-		if sn := decode(n.Value); sn != nil {
-			s, ok := serviceMap[sn.Version]
+		if service := decode(n.Value); service != nil {
+			main := utils.UnsafeToString(service.Version)
+			s, ok := serviceMap[main]
 			if !ok {
 				s = &micro.Service{
-					Name:      sn.Name,
-					Version:   sn.Version,
-					Metadata:  sn.Metadata,
-					Endpoints: sn.Endpoints,
+					Name:      service.Name,
+					Version:   service.Version,
+					Metadata:  service.Metadata,
+					Endpoints: service.Endpoints,
 				}
-				serviceMap[s.Version] = s
+				serviceMap[main] = s
 			}
 
-			s.Nodes = append(s.Nodes, sn.Nodes...)
+			s.Nodes = append(s.Nodes, service.Nodes...)
 		}
 	}
 
