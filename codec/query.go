@@ -13,10 +13,6 @@ func init() {
 	DefaultQueryUnmarshaler.IgnoreUnknownKeys(true)
 }
 
-func D() {
-
-}
-
 func UnmarshalQuery(endpoint string, src map[string][]string, dst interface{}) error {
 	decoder, ok := queryUnmarshalers[endpoint]
 	if !ok {
