@@ -3,8 +3,8 @@ package log
 import (
 	"errors"
 	"fmt"
-	"github.com/lolizeppelin/micro/utils"
 	"github.com/sirupsen/logrus"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -45,8 +45,12 @@ func Mount(logDir string, name string, level logrus.Level) (*Logger, error) {
 	if len(logDir) < 1 { // use stderr
 		l, err = newLogger("")
 	} else {
-		ok, _ := utils.PathIsDir(logDir)
-		if !ok {
+		var info fs.FileInfo
+		info, err = os.Lstat(logDir)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
 			return nil, errors.New("logging path is not exist or not a directory")
 		}
 		l, err = newLogger(filepath.Join(logDir, name))

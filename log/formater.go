@@ -3,12 +3,15 @@ package log
 import (
 	"bytes"
 	"fmt"
-	"github.com/lolizeppelin/micro/utils"
 	"github.com/sirupsen/logrus"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
+)
+
+const (
+	isLinux = runtime.GOOS == "linux"
 )
 
 // Formatter - logrus formatter, implements logrus.Formatter
@@ -124,17 +127,6 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-//func (f *Formatter) writeCaller(b *bytes.Buffer, entry *logrus.Entry) {
-//	if f.CustomCallerFormatter == nil {
-//		return
-//	}
-//	frame := getLogCaller()
-//	if frame == nil {
-//		return
-//	}
-//	fmt.Fprintf(b, f.CustomCallerFormatter.format(frame))
-//}
-
 func (f *Formatter) writeCaller(b *bytes.Buffer, entry *logrus.Entry) {
 	if entry.HasCaller() {
 		if f.CustomCallerFormatter != nil {
@@ -230,7 +222,7 @@ func NewFormatter() *Formatter {
 	return &Formatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		HideKeys:        true,
-		NoColors:        utils.Linux,
+		NoColors:        isLinux,
 		NoFieldsSpace:   true,
 		CallerFirst:     true,
 		FieldsOrder:     []string{"program"},
