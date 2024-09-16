@@ -339,16 +339,16 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 				methods[name] = handler
 			} else {
 				name := strings.ToLower(matches[2])
-				if _, ok := methods[name]; ok {
-					panic(fmt.Sprintf("duplicate name %s.%s", component.Name(), name))
-				}
-				handler.Name = name
 				if matches[1] == "RPC" { // 内部rpc接口
+					if _, ok := methods[name]; ok {
+						panic(fmt.Sprintf("duplicate name %s.%s", component.Name(), name))
+					}
 					handler.Internal = true
 					methods[name] = handler
 				} else { // 非标准请求接口
 					handlers = append(handlers, handler)
 				}
+				handler.Name = name
 			}
 		}
 	}
