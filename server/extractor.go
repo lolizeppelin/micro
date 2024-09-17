@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
@@ -116,9 +115,8 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		if err := codec.UnmarshalQuery(endpoint, query, arg.Interface()); err != nil {
 			return nil, errors.BadRequest("micro.server", "Unmarshal request query failed")
 		}
-		// query结构体转bytes进行json schema校验
-		buff, _ := json.Marshal(arg.Interface())
-		result, err := handler.QueryValidator.Validate(gojsonschema.NewBytesLoader(buff))
+		// 进行json schema校验
+		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(arg.Interface()))
 		if err != nil {
 			return nil, err
 		}
