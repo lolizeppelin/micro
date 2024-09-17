@@ -335,6 +335,9 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 			matches := curdPrefix.FindStringSubmatch(method.Name)
 			if matches == nil { // 没有前缀,网关接口
 				name := strings.ToLower(method.Name)
+				if _, ok := methods[name]; ok {
+					panic(fmt.Sprintf("duplicate name %s.%s", component.Name(), name))
+				}
 				handler.Name = name
 				methods[name] = handler
 			} else {
@@ -345,7 +348,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 					}
 					handler.Internal = true
 					methods[name] = handler
-				} else { // 非标准请求接口
+				} else { // GET/POST/PUT/PATCH/DELETE, 非标restful接口
 					handlers = append(handlers, handler)
 				}
 				handler.Name = name
