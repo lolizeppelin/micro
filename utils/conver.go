@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"math"
 	"reflect"
 	"strconv"
@@ -111,4 +112,18 @@ func Abs[T NumberType](i T) T {
 		return -i
 	}
 	return i
+}
+
+func StringToMoney(s string) (value decimal.Decimal, err error) {
+	value, err = decimal.NewFromString(s)
+	if err != nil {
+		return
+	}
+	intValue := value.IntPart()
+	if intValue < 0 {
+		err = fmt.Errorf("amount value over range")
+	}
+	// 支付金额小数位数为2
+	value = value.Truncate(2)
+	return
 }
