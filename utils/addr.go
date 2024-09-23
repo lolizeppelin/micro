@@ -175,6 +175,11 @@ func HostPort(addr string, port interface{}) string {
 
 func Listen(addr string) (net.Listener, error) {
 	if strings.HasPrefix(addr, "/") {
+		if ok, err := PathExist(addr); err != nil {
+			return nil, err
+		} else if ok {
+			return nil, fmt.Errorf("http unix socket file %s already exist", addr)
+		}
 		return net.Listen("unix", addr)
 	}
 
