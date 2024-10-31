@@ -99,10 +99,44 @@ func SaveJson(path string, payload any, overwrite ...bool) error {
 	if err != nil {
 		return fmt.Errorf("SaveJson: path %s is open failed: %w", path, err)
 	}
-	defer file.Close()
 	_, err = file.Write(buff)
 	if err != nil {
+		file.Close()
 		return fmt.Errorf("SaveJson: path %s is read failed: %w", path, err)
 	}
-	return nil
+	return file.Close()
+}
+
+func SaveBuff(path string, payload []byte, overwrite ...bool) error {
+	info, err := PathFileInfo(path)
+	if err != nil {
+		return fmt.Errorf("SaveJson: path %s is check failed: %w", path, err)
+	}
+	if info != nil {
+		if len(overwrite) > 0 && overwrite[0] {
+			return fmt.Errorf("SaveJson: path %s exist", path)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("SaveJson: path %s not regular file", path)
+		}
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("SaveJson: path %s is open failed: %w", path, err)
+	}
+	_, err = file.Write(payload)
+	if err != nil {
+		file.Close()
+		return fmt.Errorf("SaveJson: path %s is read failed: %w", path, err)
+	}
+	return file.Close()
+}
+
+func LoadBuff(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("LoadBuff: path %s is open failed: %w", path, err)
+	}
+	defer file.Close()
+	return io.ReadAll(file)
 }
