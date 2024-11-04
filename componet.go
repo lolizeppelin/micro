@@ -50,6 +50,6 @@ func (*ComponentBase) BeforeShutdown() {
 func (*ComponentBase) Shutdown() {
 
 }
-func (*ComponentBase) Hooks(method string) []func(context.Context, url.Values, any) (context.Context, error) {
+func (*ComponentBase) Hooks(_ string) []PreExecuteHook {
 	return nil
 }
