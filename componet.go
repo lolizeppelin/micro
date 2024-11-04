@@ -29,8 +29,8 @@ type Component interface {
 	Name() string
 	Collection() string
 
-	// Hook pre execute hook, nil able
-	Hook(method string) func(context.Context, url.Values, any) (context.Context, error)
+	// Hooks pre execute hook, nil able
+	Hooks(method string) []func(context.Context, url.Values, any) (context.Context, error)
 }
 
 type ComponentBase struct {
@@ -48,6 +48,6 @@ func (*ComponentBase) BeforeShutdown() {
 func (*ComponentBase) Shutdown() {
 
 }
-func (*ComponentBase) Hook(method string) func(context.Context, url.Values, any) (context.Context, error) {
+func (*ComponentBase) Hooks(method string) []func(context.Context, url.Values, any) (context.Context, error) {
 	return nil
 }

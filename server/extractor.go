@@ -80,20 +80,20 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Resource       string                                                          // resource name
-	Collection     string                                                          // collection name
-	Name           string                                                          // method name
-	Rtype          reflect.Type                                                    // 结构体
-	Receiver       reflect.Value                                                   // receiver of method
-	Method         reflect.Method                                                  // method stub
-	Query          reflect.Type                                                    // 请求url query pram参数校验器
-	Request        reflect.Type                                                    // 请求参数
-	QueryValidator *gojsonschema.Schema                                            // 请求参数校验器
-	BodyValidator  *gojsonschema.Schema                                            // 请求载荷校验器
-	Response       reflect.Type                                                    // 返回参数
-	Metadata       map[string]string                                               // 元数据
-	Internal       bool                                                            // 内部rpc，不对外
-	Hook           func(context.Context, url.Values, any) (context.Context, error) // 执行前
+	Resource       string                                                            // resource name
+	Collection     string                                                            // collection name
+	Name           string                                                            // method name
+	Rtype          reflect.Type                                                      // 结构体
+	Receiver       reflect.Value                                                     // receiver of method
+	Method         reflect.Method                                                    // method stub
+	Query          reflect.Type                                                      // 请求url query pram参数校验器
+	Request        reflect.Type                                                      // 请求参数
+	QueryValidator *gojsonschema.Schema                                              // 请求参数校验器
+	BodyValidator  *gojsonschema.Schema                                              // 请求载荷校验器
+	Response       reflect.Type                                                      // 返回参数
+	Metadata       map[string]string                                                 // 元数据
+	Internal       bool                                                              // 内部rpc，不对外
+	Hooks          []func(context.Context, url.Values, any) (context.Context, error) // 执行前
 }
 
 /*
@@ -129,10 +129,10 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		}
 	}
 
+	var err error
 	if handler.Request == nil {
-		if handler.Hook != nil {
-			var err error
-			ctx, err = handler.Hook(ctx, query, nil)
+		for _, hook := range handler.Hooks {
+			ctx, err = hook(ctx, query, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -164,12 +164,13 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	} else {
 		arg = reflect.New(handler.Request.Elem())
 	}
-	if err := _codec.Unmarshal(body, arg.Interface()); err != nil {
+	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
 		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
-	if handler.Hook != nil {
-		var err error
-		ctx, err = handler.Hook(ctx, query, arg.Interface())
+
+	p := arg.Interface()
+	for _, hook := range handler.Hooks {
+		ctx, err = hook(ctx, query, p)
 		if err != nil {
 			return nil, err
 		}
@@ -299,7 +300,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 			Collection: component.Collection(),
 			Method:     method,
 			Rtype:      rtype,
-			Hook:       component.Hook(method.Name),
+			Hooks:      component.Hooks(method.Name),
 		}
 		if mt.NumIn() >= 3 {
 			query := mt.In(2)
