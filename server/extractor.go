@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
-	"github.com/lolizeppelin/micro/errors"
+	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
@@ -113,7 +113,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		// url.Values转结构体
 		p := _query.Interface()
 		if err := codec.UnmarshalQuery(endpoint, query, p); err != nil {
-			return nil, errors.BadRequest("micro.server", "Unmarshal request query failed")
+			return nil, exc.BadRequest("micro.server", "Unmarshal request query failed")
 		}
 		// 进行json schema校验
 		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
@@ -125,7 +125,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
-			return nil, errors.BadRequest("micro.server", msg)
+			return nil, exc.BadRequest("micro.server", msg)
 		}
 	}
 
@@ -141,7 +141,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	}
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
-		return nil, errors.BadRequest("micro.server", "codec not found: '%s'", protocol)
+		return nil, exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
 	}
 
 	if handler.BodyValidator != nil {
@@ -154,7 +154,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
-			return nil, errors.BadRequest("micro.server", msg)
+			return nil, exc.BadRequest("micro.server", msg)
 		}
 	}
 
@@ -165,7 +165,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		arg = reflect.New(handler.Request.Elem())
 	}
 	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
-		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
+		return nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 
 	for _, hook := range handler.Hooks {

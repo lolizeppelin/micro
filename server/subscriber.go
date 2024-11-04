@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/broker"
-	"github.com/lolizeppelin/micro/errors"
+	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/registry"
 	"github.com/lolizeppelin/micro/transport"
@@ -27,7 +27,7 @@ func (s *Service) dispatch(event broker.Event) (err error) {
 		}
 		if r := recover(); r != nil {
 			log.Errorf("panic recovered: \n%s", string(debug.Stack()))
-			err = errors.InternalServerError("go.micro.server", "panic recovered: %v", r)
+			err = exc.InternalServerError("go.micro.server", "panic recovered: %v", r)
 		}
 	}()
 
