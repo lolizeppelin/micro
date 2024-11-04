@@ -33,13 +33,11 @@ func Unmarshal(protocol string, buff []byte, payload *micro.Response) error {
 }
 
 func Marshal(protocol string, b interface{}) ([]byte, error) {
-	switch protocol {
-	case "application/grpc+bytes":
-		v, ok := b.([]byte)
-		if !ok {
-			return nil, fmt.Errorf("bytes requried for codec.Marshal")
-		}
+	v, ok := b.([]byte)
+	if !ok {
 		return v, nil
+	}
+	switch protocol {
 	case "application/grpc+json", "application/json":
 		return json.Marshal(b)
 	case "application/grpc+proto", "application/grpc":

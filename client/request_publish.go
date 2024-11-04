@@ -44,8 +44,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 		Header: headers,
 	}
 
-	body := request.Body()
-	b, err := codec.Marshal(protocol.Reqeust, body)
+	b, err := codec.Marshal(protocol.Reqeust, request.Body())
 	if err != nil {
 		return exc.InternalServerError("micro.rpc.publish", err.Error())
 	}

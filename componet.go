@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-type PreExecuteHook func(context.Context, url.Values, any) (context.Context, error)
+type PreExecuteHook func(context.Context, url.Values, []byte) (context.Context, error)
 
 // Module is the interface that represent a module.
 type Module interface {

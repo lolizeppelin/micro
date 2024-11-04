@@ -132,7 +132,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	var err error
 	if handler.Request == nil {
 		for _, hook := range handler.Hooks {
-			ctx, err = hook(ctx, query, nil)
+			ctx, err = hook(ctx, query, body)
 			if err != nil {
 				return nil, err
 			}
@@ -168,9 +168,8 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 
-	p := arg.Interface()
 	for _, hook := range handler.Hooks {
-		ctx, err = hook(ctx, query, p)
+		ctx, err = hook(ctx, query, body)
 		if err != nil {
 			return nil, err
 		}
