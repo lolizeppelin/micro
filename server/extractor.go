@@ -80,20 +80,20 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Resource       string                                                            // resource name
-	Collection     string                                                            // collection name
-	Name           string                                                            // method name
-	Rtype          reflect.Type                                                      // 结构体
-	Receiver       reflect.Value                                                     // receiver of method
-	Method         reflect.Method                                                    // method stub
-	Query          reflect.Type                                                      // 请求url query pram参数校验器
-	Request        reflect.Type                                                      // 请求参数
-	QueryValidator *gojsonschema.Schema                                              // 请求参数校验器
-	BodyValidator  *gojsonschema.Schema                                              // 请求载荷校验器
-	Response       reflect.Type                                                      // 返回参数
-	Metadata       map[string]string                                                 // 元数据
-	Internal       bool                                                              // 内部rpc，不对外
-	Hooks          []func(context.Context, url.Values, any) (context.Context, error) // 执行前
+	Resource       string                 // resource name
+	Collection     string                 // collection name
+	Name           string                 // method name
+	Rtype          reflect.Type           // 结构体
+	Receiver       reflect.Value          // receiver of method
+	Method         reflect.Method         // method stub
+	Query          reflect.Type           // 请求url query pram参数校验器
+	Request        reflect.Type           // 请求参数
+	QueryValidator *gojsonschema.Schema   // 请求参数校验器
+	BodyValidator  *gojsonschema.Schema   // 请求载荷校验器
+	Response       reflect.Type           // 返回参数
+	Metadata       map[string]string      // 元数据
+	Internal       bool                   // 内部rpc，不对外
+	Hooks          []micro.PreExecuteHook // 执行前
 }
 
 /*

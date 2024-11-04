@@ -5,6 +5,8 @@ import (
 	"net/url"
 )
 
+type PreExecuteHook func(context.Context, url.Values, any) (context.Context, error)
+
 // Module is the interface that represent a module.
 type Module interface {
 	Init() error
@@ -30,7 +32,7 @@ type Component interface {
 	Collection() string
 
 	// Hooks pre execute hook, nil able
-	Hooks(method string) []func(context.Context, url.Values, any) (context.Context, error)
+	Hooks(method string) []PreExecuteHook
 }
 
 type ComponentBase struct {

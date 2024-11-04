@@ -9,6 +9,7 @@ var (
 	ErrIPNotFound = errors.New("no IP address found, and explicit IP not provided")
 
 	ErrConfigCountNotMatch = errors.New("config count not match")
+	ErrHandlerFound        = errors.New("handler not found")
 	ErrConfigFound         = errors.New("config not found")
 	ErrServiceNotFound     = errors.New("service not found")
 	ErrWatcherStopped      = errors.New("watcher stopped")
