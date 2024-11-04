@@ -280,6 +280,11 @@ func isHandlerMethod(method reflect.Method) bool {
 	return true
 }
 
+/*
+ExtractComponent 解析组件
+返回的map是可以走网关的Handlers
+返回的列表是所有Handlers
+*/
 func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handler) {
 	typ := reflect.TypeOf(component)
 	methods := make(map[string]*Handler)
