@@ -108,10 +108,10 @@ func (r *rpcStream) Close() error {
 }
 
 func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
-	req micro.Request, opts CallOptions) (micro.Stream, error) {
+	request micro.Request, opts CallOptions) (micro.Stream, error) {
 
-	protocol := req.Protocols()
-	body, err := codec.Marshal(protocol.Reqeust, req.Body())
+	protocol := request.Protocols()
+	body, err := codec.Marshal(protocol.Reqeust, request.Body())
 	if err != nil {
 		return nil, exc.BadRequest("micro.client.stream", err.Error())
 	}
@@ -119,9 +119,11 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 	headers := transport.CopyFromContext(ctx)
 	headers[micro.ContentType] = protocol.Reqeust
 	headers[micro.Accept] = protocol.Response
-	headers[transport.Service] = req.Service()
-	headers[transport.Method] = req.Method()
-	headers[transport.Endpoint] = req.Endpoint()
+	headers[micro.Host] = request.Host()
+	headers[micro.PrimaryKey] = request.PrimaryKey()
+	headers[transport.Service] = request.Service()
+	headers[transport.Method] = request.Method()
+	headers[transport.Endpoint] = request.Endpoint()
 
 	// set timeout in nanoseconds
 	if opts.StreamTimeout > time.Duration(0) {

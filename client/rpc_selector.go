@@ -37,6 +37,10 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 						if ep.Internal && !opts.Internal { // 屏蔽内部rpc请求
 							return nil, exc.Forbidden("go.micro.client.selector", "disabled request")
 						}
+						pk := request.PrimaryKey() == ""
+						if (ep.PrimaryKey && !pk) || (pk && !ep.PrimaryKey) {
+							return nil, exc.BadRequest("go.micro.client.selector", "request path param error")
+						}
 						found = true
 						break
 					}

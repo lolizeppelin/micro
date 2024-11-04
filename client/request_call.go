@@ -14,10 +14,10 @@ import (
 )
 
 func (r *rpcClient) call(ctx context.Context, node *micro.Node,
-	req micro.Request, opts CallOptions) (*transport.Message, error) {
+	request micro.Request, opts CallOptions) (*transport.Message, error) {
 
-	protocol := req.Protocols()
-	body, err := codec.Marshal(protocol.Reqeust, req.Body())
+	protocol := request.Protocols()
+	body, err := codec.Marshal(protocol.Reqeust, request.Body())
 	if err != nil {
 		return nil, exc.BadRequest("micro.rpc.call", err.Error())
 	}
@@ -25,9 +25,11 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node,
 	headers := transport.CopyFromContext(ctx)
 	headers[micro.ContentType] = protocol.Reqeust
 	headers[micro.Accept] = protocol.Response
-	headers[transport.Service] = req.Service()
-	headers[transport.Method] = req.Method()
-	headers[transport.Endpoint] = req.Endpoint()
+	headers[micro.Host] = request.Host()
+	headers[micro.PrimaryKey] = request.PrimaryKey()
+	headers[transport.Service] = request.Service()
+	headers[transport.Method] = request.Method()
+	headers[transport.Endpoint] = request.Endpoint()
 
 	// Set connection timeout for single requests to the server. Should be > 0
 	// as otherwise requests can't be made.
@@ -64,7 +66,7 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node,
 	var msg *transport.Message
 	msg, err = c.Call(ctx, &transport.Message{
 		Header: headers,
-		Query:  req.Query(),
+		Query:  request.Query(),
 		Body:   body,
 	})
 	if err != nil {

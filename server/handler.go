@@ -69,36 +69,32 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	if err != nil {
 		return exc.InternalServerError("go.micro.server", err.Error())
 	}
-	// get grpc metadata
-	gmd, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		gmd = metadata.MD{}
-	}
 	// copy the metadata to go-micro.metadata
 	log.Debugf("request %s", endpoint)
+
 	timeout := int64(0)
-	md := transport.Metadata{}
-	for k, v := range gmd {
-		if k == "timeout" && len(v) > 0 {
-			timeout, _ = strconv.ParseInt(v[0], 10, 64)
+	md := transport.Metadata{
+		transport.Method: request.Header[transport.Method],
+	}
+	// get grpc metadata
+	if gmd, find := metadata.FromIncomingContext(ctx); find {
+		for k, v := range gmd {
+			if k == "timeout" && len(v) > 0 {
+				timeout, _ = strconv.ParseInt(v[0], 10, 64)
+			}
+			md[k] = strings.Join(v, ", ")
 		}
-		md[k] = strings.Join(v, ", ")
 	}
-	md[transport.Method] = request.Header[transport.Method]
-
-	// create new context
-	_ctx := transport.NewContext(ctx, md)
-
 	// get peer from context
-	if p, ok := peer.FromContext(ctx); ok {
+	if p, trace := peer.FromContext(ctx); trace {
 		md["Remote"] = p.Addr.String()
-		_ctx = peer.NewContext(_ctx, p)
 	}
+	ctx = transport.NewContext(ctx, md)
 
 	// set the timeout if we have it
 	if timeout > 0 {
 		var cancel context.CancelFunc
-		_ctx, cancel = context.WithTimeout(_ctx, time.Duration(timeout)*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 		defer cancel()
 	}
 
@@ -115,7 +111,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	}
 
 	var args []reflect.Value
-	args, err = handler.BuildArgs(_ctx, request.Header[micro.ContentType], request.QueryParams(), request.Body)
+	args, err = handler.BuildArgs(ctx, request.Header[micro.ContentType], request.QueryParams(), request.Body)
 	if err != nil {
 		return err
 	}

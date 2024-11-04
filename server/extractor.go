@@ -80,43 +80,43 @@ func ServiceMethod(m string) (string, string, error) {
 }
 
 type Handler struct {
-	Resource       string               // resource name
-	Collection     string               // collection name
-	Name           string               // method name
-	Rtype          reflect.Type         // 结构体
-	Receiver       reflect.Value        // receiver of method
-	Method         reflect.Method       // method stub
-	Query          reflect.Type         // 请求url query pram参数校验器
-	Request        reflect.Type         // 请求参数
-	QueryValidator *gojsonschema.Schema // 请求参数校验器
-	BodyValidator  *gojsonschema.Schema // 请求载荷校验器
-	Response       reflect.Type         // 返回参数
-	Metadata       map[string]string    // 元数据
-	Internal       bool                 // 内部rpc，不对外
+	Resource       string                                                          // resource name
+	Collection     string                                                          // collection name
+	Name           string                                                          // method name
+	Rtype          reflect.Type                                                    // 结构体
+	Receiver       reflect.Value                                                   // receiver of method
+	Method         reflect.Method                                                  // method stub
+	Query          reflect.Type                                                    // 请求url query pram参数校验器
+	Request        reflect.Type                                                    // 请求参数
+	QueryValidator *gojsonschema.Schema                                            // 请求参数校验器
+	BodyValidator  *gojsonschema.Schema                                            // 请求载荷校验器
+	Response       reflect.Type                                                    // 返回参数
+	Metadata       map[string]string                                               // 元数据
+	Internal       bool                                                            // 内部rpc，不对外
+	Hook           func(context.Context, url.Values, any) (context.Context, error) // 执行前
 }
 
 /*
 BuildArgs rpc转发将请求转数据转化为反射调用参数
 */
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
-	args := []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}
 	if handler.Query == nil && handler.Request == nil {
-		return args, nil
+		return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}, nil
 	}
 
-	var arg reflect.Value
+	var _query reflect.Value
 	if handler.Query == nil {
-		arg = reflect.ValueOf(nil)
-	} else {
-		// validator query parameters
-		arg = reflect.New(handler.Query.Elem())
+		_query = reflect.ValueOf(nil)
+	} else { // validator query parameters
+		_query = reflect.New(handler.Query.Elem())
 		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
 		// url.Values转结构体
-		if err := codec.UnmarshalQuery(endpoint, query, arg.Interface()); err != nil {
+		p := _query.Interface()
+		if err := codec.UnmarshalQuery(endpoint, query, p); err != nil {
 			return nil, errors.BadRequest("micro.server", "Unmarshal request query failed")
 		}
 		// 进行json schema校验
-		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(arg.Interface()))
+		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
 		if err != nil {
 			return nil, err
 		}
@@ -129,9 +129,15 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		}
 	}
 
-	args = append(args, arg)
 	if handler.Request == nil {
-		return args, nil
+		if handler.Hook != nil {
+			var err error
+			ctx, err = handler.Hook(ctx, query, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
@@ -152,6 +158,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		}
 	}
 
+	var arg reflect.Value
 	if handler.Request == utils.TypeOfBytes {
 		arg = reflect.Zero(handler.Request)
 	} else {
@@ -160,8 +167,14 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	if err := _codec.Unmarshal(body, arg.Interface()); err != nil {
 		return nil, errors.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
-	args = append(args, arg)
-	return args, nil
+	if handler.Hook != nil {
+		var err error
+		ctx, err = handler.Hook(ctx, query, arg.Interface())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query, arg}, nil
 }
 
 /*
@@ -286,6 +299,7 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 			Collection: component.Collection(),
 			Method:     method,
 			Rtype:      rtype,
+			Hook:       component.Hook(method.Name),
 		}
 		if mt.NumIn() >= 3 {
 			query := mt.In(2)
@@ -385,9 +399,10 @@ func extractEndpoints(services map[string]map[string]*Handler) (endpoints []*mic
 	for name, service := range services {
 		for method, handler := range service {
 			endpoint := &micro.Endpoint{
-				Name:     fmt.Sprintf("%s.%s", name, method),
-				Metadata: handler.Metadata,
-				Internal: handler.Internal,
+				Name:       fmt.Sprintf("%s.%s", name, method),
+				Metadata:   handler.Metadata,
+				PrimaryKey: handler.Name == "Get" || handler.Name == "Update" || handler.Name == "Delete",
+				Internal:   handler.Internal,
 			}
 			endpoints = append(endpoints, endpoint)
 		}

@@ -38,7 +38,8 @@ type Node struct {
 }
 
 type Endpoint struct {
-	Name     string            `json:"name"`
-	Metadata map[string]string `json:"metadata"`           // 元数据
-	Internal bool              `json:"internal,omitempty"` // 是否内部rpc
+	Name       string            `json:"name"`
+	Metadata   map[string]string `json:"metadata"`           // 元数据
+	PrimaryKey bool              `json:"pk,omitempty"`       // 是否需要主键
+	Internal   bool              `json:"internal,omitempty"` // 是否内部rpc
 }

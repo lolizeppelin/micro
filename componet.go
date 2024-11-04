@@ -1,5 +1,10 @@
 package micro
 
+import (
+	"context"
+	"net/url"
+)
+
 // Module is the interface that represent a module.
 type Module interface {
 	Init() error
@@ -23,6 +28,9 @@ type Component interface {
 
 	Name() string
 	Collection() string
+
+	// Hook pre execute hook
+	Hook(method string) func(context.Context, url.Values, any) (context.Context, error)
 }
 
 type ComponentBase struct {

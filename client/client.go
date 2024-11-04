@@ -70,50 +70,48 @@ func NewClient(opts Options) (Client, error) {
 func NewRequest(target micro.Target, payload interface{}) micro.Request {
 
 	return &rpcRequest{
-		service:   target.Service,
-		method:    target.Method,
-		endpoint:  target.Endpoint,
-		query:     target.Query,
-		protocols: target.Protocols,
-		version:   target.Version,
-		body:      payload,
+		target: target,
+		body:   payload,
 	}
 }
 
 type rpcRequest struct {
-	query     url.Values
-	body      interface{}
-	service   string
-	method    string
-	endpoint  string
-	protocols *micro.Protocols
-	version   *micro.Version
+	target micro.Target
+	body   interface{}
 }
 
 func (r *rpcRequest) Protocols() *micro.Protocols {
-	return r.protocols
+	return r.target.Protocols
+}
+
+func (r *rpcRequest) PrimaryKey() string {
+	return r.target.ID
+}
+
+func (r *rpcRequest) Host() string {
+	return r.target.Host
 }
 
 func (r *rpcRequest) Query() url.Values {
-	return r.query
+	return r.target.Query
 }
 
 func (r *rpcRequest) Service() string {
-	return r.service
+	return r.target.Service
 }
 
 func (r *rpcRequest) Method() string {
-	return r.method
+	return r.target.Method
 }
 
 func (r *rpcRequest) Endpoint() string {
-	return r.endpoint
+	return r.target.Endpoint
+}
+
+func (r *rpcRequest) Version() *micro.Version {
+	return r.target.Version
 }
 
 func (r *rpcRequest) Body() interface{} {
 	return r.body
-}
-
-func (r *rpcRequest) Version() *micro.Version {
-	return r.version
 }

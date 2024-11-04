@@ -4,6 +4,10 @@ import "net/url"
 
 // Request is the interface for a synchronous request used by Call or Stream.
 type Request interface {
+	// primary key
+	PrimaryKey() string
+	// The host to call
+	Host() string
 	// The service to call
 	Service() string
 	// The action to take
@@ -38,7 +42,9 @@ type Stream interface {
 }
 
 type Target struct {
+	ID        string     // primary key
 	Method    string     // http method
+	Host      string     // http host
 	Service   string     // service
 	Endpoint  string     // service endpoint
 	Version   *Version   // service version
