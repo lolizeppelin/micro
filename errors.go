@@ -10,6 +10,7 @@ var (
 
 	ErrConfigCountNotMatch = errors.New("config count not match")
 	ErrHandlerFound        = errors.New("handler not found")
+	ErrMismatch            = errors.New("value mismatch")
 	ErrConfigFound         = errors.New("config not found")
 	ErrServiceNotFound     = errors.New("service not found")
 	ErrWatcherStopped      = errors.New("watcher stopped")
