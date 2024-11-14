@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"reflect"
 	"sort"
 )
 
@@ -110,4 +112,71 @@ func MapKeyToSlice[T1 comparable, T2 any](m map[T1]T2) []T1 {
 		slice = append(slice, k)
 	}
 	return slice
+}
+
+func Supported(supports []string, target string) bool {
+	for _, value := range supports {
+		if value == "*" || value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func SliceReverse[T any](s []T) []T {
+	newS := make([]T, len(s))
+	for i, j := 0, len(s)-1; i <= j; i, j = i+1, j-1 {
+		newS[i], newS[j] = s[j], s[i]
+	}
+	return newS
+}
+
+func SliceToMap[T any, K comparable](s []T, keyFunc func(T) K) map[K]T {
+	result := make(map[K]T)
+	for _, item := range s {
+		key := keyFunc(item)
+		result[key] = item
+	}
+	return result
+}
+
+func SliceToMapByField[T any, K comparable](s []T, field ...string) (map[K]T, error) {
+	result := make(map[K]T)
+
+	key := "ID"
+	if len(field) > 0 {
+		key = field[0]
+	}
+
+	for _, item := range s {
+		val := reflect.ValueOf(item)
+		if val.Kind() == reflect.Ptr {
+			val = val.Elem()
+		}
+
+		// 获取字段值
+		fieldVal := val.FieldByName(key)
+		if !fieldVal.IsValid() {
+			return nil, fmt.Errorf("field %s not found", key)
+		}
+
+		// 确保字段可以比较
+		if !fieldVal.Type().Comparable() {
+			return nil, fmt.Errorf("field %s is not comparable", key)
+		}
+
+		// 转换字段值为键类型
+		k, ok := fieldVal.Interface().(K)
+		if !ok {
+			return nil, fmt.Errorf("field %s cannot be converted to key type", k)
+		}
+
+		result[k] = item
+	}
+
+	return result, nil
+}
+
+func SliceToMapByStringField[T any](s []T, key ...string) (map[string]T, error) {
+	return SliceToMapByField[T, string](s, key...)
 }
