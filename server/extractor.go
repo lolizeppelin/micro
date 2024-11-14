@@ -222,14 +222,13 @@ func (handler *Handler) UrlPath() (resource, path, method string) {
 		path += fmt.Sprintf("%s/:id", handler.Resource)
 		return
 	default: // 非restful接口
+		resource = fmt.Sprintf("%s/%s", handler.Resource, handler.Name)
+		path = fmt.Sprintf("/%s", resource)
 		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)
-		if matches == nil {
-			path = ""
+		if matches == nil { // 这是一个网关接口
 			return
 		}
 		method = matches[1]
-		resource = fmt.Sprintf("%s/%s", handler.Resource, handler.Name)
-		path = fmt.Sprintf("/%s", resource)
 	}
 	return
 }
