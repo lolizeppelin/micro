@@ -90,6 +90,21 @@ func (e *EtcdConfig) Truncate(ctx context.Context, key string) (int64, error) {
 	return kv.Deleted, nil
 }
 
+/*
+SafePut 通过事务更新
+*/
+func (e *EtcdConfig) SafePut(ctx context.Context, key string, value string) (*clientv3.TxnResponse, error) {
+	last, err := e.Get(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	_key := e.prefix + key
+	return e.kv.Txn(ctx).
+		If(clientv3.Compare(clientv3.Version(_key), "=", last.Version)).
+		Then(clientv3.OpPut(_key, value)).
+		Commit()
+}
+
 func (e *EtcdConfig) Watch(key string, handler func(string, []*clientv3.Event, error)) {
 	newWatcher(e, e.prefix+key, handler)
 }

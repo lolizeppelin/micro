@@ -63,13 +63,6 @@ func StringSliceToInt[T IntType](s []string) ([]T, error) {
 	return output, nil
 }
 
-// CopySlice 拷贝列表
-func CopySlice[T any](src []T) []T {
-	dst := make([]T, len(src))
-	copy(dst, src)
-	return dst
-}
-
 // SortSlice 排序
 func SortSlice[T SortAbleType](src []T, reverse ...bool) []T {
 	s := CopySlice(src)
@@ -140,6 +133,21 @@ func SliceToMap[T any, K comparable](s []T, keyFunc func(T) K) map[K]T {
 	return result
 }
 
+// HasIntersection  判断是否有交集
+func HasIntersection[T comparable](slice1, slice2 []T) bool {
+	set := make(map[T]struct{}) // struct{}不占空间
+	for _, item := range slice1 {
+		set[item] = struct{}{}
+	}
+	for _, item := range slice2 {
+		if _, exists := set[item]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+// SliceToMapByField 列表转字典，以列表中结构体的指定字段为key
 func SliceToMapByField[T any, K comparable](s []T, field ...string) (map[K]T, error) {
 	result := make(map[K]T)
 
@@ -177,6 +185,7 @@ func SliceToMapByField[T any, K comparable](s []T, field ...string) (map[K]T, er
 	return result, nil
 }
 
+// SliceToMapByStringField 列表转字典，以列表中结构体的指定字符串字段为key
 func SliceToMapByStringField[T any](s []T, key ...string) (map[string]T, error) {
 	return SliceToMapByField[T, string](s, key...)
 }
