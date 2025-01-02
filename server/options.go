@@ -149,10 +149,10 @@ func WithBrokerOpts(options []broker.SubscribeOption) Option {
 	}
 }
 
-func NewOptions() Options {
+func NewOptions(name string) Options {
 	return Options{
 		Id:            1,
-		Name:          "server",
+		Name:          name,
 		MaxMsgSize:    DefaultMaxMsgSize,
 		Interval:      time.Second * 30,
 		RegisterCheck: registry.DefaultRegisterCheck,
