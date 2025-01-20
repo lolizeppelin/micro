@@ -176,7 +176,7 @@ func SliceToMapByField[T any, K comparable](s []T, field ...string) (map[K]T, er
 		// 转换字段值为键类型
 		k, ok := fieldVal.Interface().(K)
 		if !ok {
-			return nil, fmt.Errorf("field %s cannot be converted to key type", k)
+			return nil, fmt.Errorf("field %v cannot be converted to key type", k)
 		}
 
 		result[k] = item
@@ -188,4 +188,20 @@ func SliceToMapByField[T any, K comparable](s []T, field ...string) (map[K]T, er
 // SliceToMapByStringField 列表转字典，以列表中结构体的指定字符串字段为key
 func SliceToMapByStringField[T any](s []T, key ...string) (map[string]T, error) {
 	return SliceToMapByField[T, string](s, key...)
+}
+
+// RepeatSlice 实现python  [1] * n的功能
+func RepeatSlice[T any](slice []T, times int) []T {
+	if times <= 0 {
+		return []T{}
+	}
+
+	// Calculate the new length for the resulting slice
+	result := make([]T, 0, len(slice)*times)
+
+	// Append the slice to itself 'times' times
+	for i := 0; i < times; i++ {
+		result = append(result, slice...)
+	}
+	return result
 }

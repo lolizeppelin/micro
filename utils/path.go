@@ -15,7 +15,7 @@ func PathExist(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return info == nil, nil
+	return info != nil, nil
 }
 
 func PathFileInfo(path string) (os.FileInfo, error) {

@@ -18,4 +18,7 @@ var (
 	ErrSelectServiceNotFound  = errors.New("no service found")
 	ErrSelectEndpointNotFound = errors.New("endpoint not found")
 	ErrNoneServiceAvailable   = errors.New("none available") // node not found
+
+	ErrResultFailed = errors.New("result failed") // node not found
+	ErrUnknown      = errors.New("unknown error") // node not found
 )

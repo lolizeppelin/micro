@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/crc32"
+	"hash/fnv"
 	"strings"
 )
 
@@ -104,4 +105,21 @@ func Md5Hmac(value, salt string) string {
 	h := hmac.New(md5.New, []byte(salt))
 	h.Write([]byte(value))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+/*
+HashStringToInt hashes a string to an int value and limits the result within a specified range.
+用于散列字符串到分区
+[a, b)
+*/
+func HashStringToInt(s string, min, max int) int {
+	// Create a new FNV-1a hash.
+	h := fnv.New32a()
+	// Write the string into the hash.
+	h.Write([]byte(s))
+	// Get the hash sum as a uint32.
+	hashValue := h.Sum32()
+	// Limit the hash value to the specified range using modulo operation.
+	rangeSize := max - min
+	return int(hashValue)%rangeSize + min
 }

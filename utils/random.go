@@ -7,8 +7,12 @@ import (
 	"time"
 )
 
+var (
+	RandomSeed *rand.Rand
+)
+
 func init() {
-	rand.New(rand.NewSource(time.Now().UnixNano())) // 初始化随机数种子
+	RandomSeed = rand.New(rand.NewSource(time.Now().UnixNano())) // 初始化随机数种子
 }
 
 func RandomHex(length int) string {
@@ -22,7 +26,7 @@ func RandomHex(length int) string {
 }
 
 func RandomInt(n int) int {
-	return rand.Intn(n)
+	return RandomSeed.Intn(n)
 }
 
 // RandString 返回一个指定长度的随机字符串
@@ -32,4 +36,16 @@ func RandString(n int) string {
 		b[i] = baseChars[rand.Intn(baseCharsSize)]
 	}
 	return string(b)
+}
+
+// ShuffleSlice 使用 Fisher-Yates 算法随机打乱切片
+func ShuffleSlice[T any](list []T) []T {
+	shuffled := make([]T, len(list))
+	copy(shuffled, list)
+
+	for i := len(shuffled) - 1; i > 0; i-- {
+		j := RandomSeed.Intn(i + 1)
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	}
+	return shuffled
 }

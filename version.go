@@ -2,9 +2,15 @@ package micro
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro/utils"
 	"strings"
+)
+
+var (
+	NoVersion  = errors.New("no version")
+	VersionErr = errors.New("version value error")
 )
 
 type Version struct {
@@ -66,34 +72,38 @@ func NewVersion(v string) (*Version, error) {
 		patch int
 		err   error
 	)
+	if v == "" {
+		return nil, NoVersion
+	}
 	s := strings.Split(v, ".")
-	if len(s) <= 0 || len(s) > 3 {
-		return nil, fmt.Errorf("version value error")
+	parts := len(s)
+	if len(s) <= 0 || parts > 3 {
+		return nil, VersionErr
 	}
 
 	major, err = utils.StringToInt(s[0])
 	if err != nil {
-		return nil, fmt.Errorf("major version error")
+		return nil, VersionErr
 	}
 	if major <= 0 {
-		return nil, fmt.Errorf("major value lt 0")
+		return nil, VersionErr
 	}
-	if len(s) >= 2 {
+	if parts >= 2 {
 		minor, err = utils.StringToInt(s[1])
 		if err != nil {
-			return nil, fmt.Errorf("minor version error")
+			return nil, VersionErr
 		}
 		if minor < 0 {
-			return nil, fmt.Errorf("minor value less then 0")
+			return nil, VersionErr
 		}
 	}
-	if len(s) >= 3 {
+	if parts >= 3 {
 		patch, err = utils.StringToInt(s[2])
 		if err != nil {
-			return nil, fmt.Errorf("patch version error")
+			return nil, VersionErr
 		}
 		if patch < 0 {
-			return nil, fmt.Errorf("patch value less then 0")
+			return nil, VersionErr
 		}
 	}
 

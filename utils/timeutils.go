@@ -27,3 +27,7 @@ func ExpireTime(timeout int64) (int64, int64) {
 	return now, now + timeout
 
 }
+
+func StringToTime(s string) (time.Time, error) {
+	return time.Parse(TimestampFormat, s)
+}

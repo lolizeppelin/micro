@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"fmt"
+	"github.com/lolizeppelin/micro/utils"
 	"github.com/sirupsen/logrus"
 	"runtime"
 	"sort"
@@ -220,7 +221,7 @@ func getColorByLevel(level logrus.Level) int {
 
 func NewFormatter() *Formatter {
 	return &Formatter{
-		TimestampFormat: "2006-01-02 15:04:05",
+		TimestampFormat: utils.TimestampFormat,
 		HideKeys:        true,
 		NoColors:        isLinux,
 		NoFieldsSpace:   true,

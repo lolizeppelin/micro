@@ -93,16 +93,38 @@ func (e *EtcdConfig) Truncate(ctx context.Context, key string) (int64, error) {
 /*
 SafePut 通过事务更新
 */
-func (e *EtcdConfig) SafePut(ctx context.Context, key string, value string) (*clientv3.TxnResponse, error) {
-	last, err := e.Get(ctx, key)
-	if err != nil {
-		return nil, err
+func (e *EtcdConfig) SafePut(ctx context.Context, key string, value string, version ...int64) (int64, error) {
+
+	var ver int64
+	if len(version) > 0 {
+		ver = version[0]
+	} else {
+		last, err := e.Get(ctx, key)
+		if err != nil {
+			return 0, err
+		}
+		ver = last.Version
 	}
 	_key := e.prefix + key
-	return e.kv.Txn(ctx).
-		If(clientv3.Compare(clientv3.Version(_key), "=", last.Version)).
+	resp, err := e.kv.Txn(ctx).
+		If(clientv3.Compare(clientv3.Version(_key), "<=", ver)).
 		Then(clientv3.OpPut(_key, value)).
 		Commit()
+	if err != nil {
+		return 0, err
+	}
+	if !resp.Succeeded {
+		return 0, micro.ErrResultFailed
+	}
+
+	for _, res := range resp.Responses {
+		result := res.GetResponsePut()
+		if result != nil {
+			return result.Header.Revision, nil
+		}
+	}
+
+	return 0, micro.ErrUnknown
 }
 
 func (e *EtcdConfig) Watch(key string, handler func(string, []*clientv3.Event, error)) {

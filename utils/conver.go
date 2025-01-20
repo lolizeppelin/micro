@@ -10,6 +10,10 @@ import (
 	"strconv"
 )
 
+const (
+	TimestampFormat = "2006-01-02 15:04:05"
+)
+
 func IntToString[T IntType](value T) string {
 	return strconv.Itoa(int(value))
 }
@@ -38,9 +42,13 @@ func UnsafeStrToI32(value string) int32 {
 }
 
 func JsonConvert(a, b any) error {
-	buff, err := json.Marshal(a)
-	if err != nil {
-		return err
+	buff, ok := a.([]byte)
+	if !ok {
+		var err error
+		buff, err = json.Marshal(a)
+		if err != nil {
+			return err
+		}
 	}
 	return json.Unmarshal(buff, b)
 }

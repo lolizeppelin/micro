@@ -4,6 +4,7 @@
 package systemd
 
 import (
+	"errors"
 	"github.com/coreos/go-systemd/v22/daemon"
 )
 

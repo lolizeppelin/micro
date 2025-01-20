@@ -84,7 +84,7 @@ type Handler struct {
 	Collection     string                 // collection name
 	Name           string                 // method name
 	Rtype          reflect.Type           // 结构体
-	Receiver       reflect.Value          // receiver of method
+	Receiver       *reflect.Value         // receiver of method
 	Method         reflect.Method         // method stub
 	Query          reflect.Type           // 请求url query pram参数校验器
 	Request        reflect.Type           // 请求参数
@@ -101,7 +101,7 @@ BuildArgs rpc转发将请求转数据转化为反射调用参数
 */
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
 	if handler.Query == nil && handler.Request == nil {
-		return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}, nil
+		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx)}, nil
 	}
 
 	var _query reflect.Value
@@ -137,7 +137,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 				return nil, err
 			}
 		}
-		return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query}, nil
+		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
@@ -147,7 +147,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	if handler.BodyValidator != nil {
 		result, err := handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
 		if err != nil {
-			return nil, err
+			return nil, exc.BadRequest("micro.server", "decode body failed")
 		}
 		if !result.Valid() {
 			msg := fmt.Sprintf("Validate request body failed")
@@ -174,7 +174,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			return nil, err
 		}
 	}
-	return []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query, arg}, nil
+	return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query, arg}, nil
 }
 
 /*
@@ -307,13 +307,11 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 		}
 		if mt.NumIn() >= 3 {
 			query := mt.In(2)
-			if query.Elem().NumField() > 0 {
-				handler.Query = query
-				buff, _ := jsonschema.Marshal(handler.Query, false)
-				loader := gojsonschema.NewBytesLoader(buff)
-				validator, _ := gojsonschema.NewSchema(loader)
-				handler.QueryValidator = validator
-			}
+			handler.Query = query
+			buff, _ := jsonschema.Marshal(handler.Query, false)
+			loader := gojsonschema.NewBytesLoader(buff)
+			validator, _ := gojsonschema.NewSchema(loader)
+			handler.QueryValidator = validator
 		}
 		if mt.NumIn() == 4 {
 			handler.Request = mt.In(3)
@@ -387,7 +385,7 @@ func ExtractComponents(components []micro.Component) (map[string]map[string]*Han
 		methods, hs := ExtractComponent(c)
 		handlers = append(handlers, hs...)
 		for method, handler := range methods {
-			handler.Receiver = value
+			handler.Receiver = &value
 			m, ok := services[c.Name()]
 			if !ok {
 				m = make(map[string]*Handler)
