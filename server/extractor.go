@@ -6,6 +6,7 @@ import (
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
+	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
@@ -113,14 +114,17 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		// url.Values转结构体
 		p := _query.Interface()
 		if err := codec.UnmarshalQuery(endpoint, query, p); err != nil {
+			log.Debug("unmarshal request query error")
 			return nil, exc.BadRequest("micro.server", "Unmarshal request query failed")
 		}
 		// 进行json schema校验
 		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
 		if err != nil {
+			log.Debug("validate request query error")
 			return nil, err
 		}
 		if !result.Valid() {
+			log.Debug("validate request query failed")
 			msg := fmt.Sprintf("Validate request query failed")
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
@@ -131,33 +135,37 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 
 	var err error
 	if handler.Request == nil {
-		for _, hook := range handler.Hooks {
+		for i, hook := range handler.Hooks {
 			ctx, err = hook(ctx, query, body)
 			if err != nil {
+				log.Debug("request execute %d hook  failed", i)
 				return nil, err
 			}
 		}
 		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
+	// 请求协议
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
 		return nil, exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
 	}
-
+	// body使用jsonschema校验 TODO 非json无法校验,需要处理
 	if handler.BodyValidator != nil {
 		result, err := handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
 		if err != nil {
+			log.Debug("validate request body error")
 			return nil, exc.BadRequest("micro.server", "decode body failed")
 		}
 		if !result.Valid() {
-			msg := fmt.Sprintf("Validate request body failed")
+			log.Debug("validate request body failed")
+			msg := fmt.Sprintf("validate request body failed")
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
 			return nil, exc.BadRequest("micro.server", msg)
 		}
 	}
-
+	// 按协议解析数据流
 	var arg reflect.Value
 	if handler.Request == utils.TypeOfBytes {
 		arg = reflect.Zero(handler.Request)
@@ -168,9 +176,10 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		return nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 
-	for _, hook := range handler.Hooks {
+	for i, hook := range handler.Hooks {
 		ctx, err = hook(ctx, query, body)
 		if err != nil {
+			log.Debug("request execute %d hook failed", i)
 			return nil, err
 		}
 	}
