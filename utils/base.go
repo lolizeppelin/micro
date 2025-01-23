@@ -3,13 +3,13 @@ package utils
 import "runtime"
 
 const (
-	baseChars     = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	baseCharsSize = len(baseChars)
+	Base62Chars    = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	Base62CharsLen = len(Base62Chars)
 
 	Linux   = runtime.GOOS == "linux"
 	Windows = runtime.GOOS == "windows"
 )
 
 var (
-	baseBytesChars = []byte(baseChars)
+	baseBytesChars = []byte(Base62Chars)
 )

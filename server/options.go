@@ -33,8 +33,8 @@ type Options struct {
 
 type Option func(*Options)
 
-func WithServerId(id int32) Option {
-	if id <= 0 || id > MaxServerSN {
+func WithServerId(id uint64) Option {
+	if id == 0 || id > MaxServerSN {
 		panic("server id over size")
 	}
 	return func(o *Options) {

@@ -33,7 +33,7 @@ func RandomInt(n int) int {
 func RandString(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = baseChars[rand.Intn(baseCharsSize)]
+		b[i] = Base62Chars[rand.Intn(Base62CharsLen)]
 	}
 	return string(b)
 }

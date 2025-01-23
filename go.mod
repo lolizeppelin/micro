@@ -12,6 +12,7 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sony/gobreaker/v2 v2.0.0
+	github.com/sqids/sqids-go v0.4.1
 	github.com/swaggest/jsonschema-go v0.3.72
 	github.com/twmb/franz-go v1.17.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
