@@ -90,6 +90,10 @@ func (m *SyncMap[K, V]) Store(key K, value V) {
 	m.storages.Store(key, value)
 }
 
+func (m *SyncMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
+	return m.storages.Swap(key, value)
+}
+
 func (m *SyncMap[K, V]) All() map[K]V {
 	o := map[K]V{}
 	m.storages.Range(func(key, value any) bool {
