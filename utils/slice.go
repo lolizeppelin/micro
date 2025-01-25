@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 )
 
 // SortAbleSlice 可排序列表,从小到大
@@ -204,4 +205,27 @@ func RepeatSlice[T any](slice []T, times int) []T {
 		result = append(result, slice...)
 	}
 	return result
+}
+
+// SliceJoin 列表合并
+func SliceJoin[T SortAbleType](values []T, quote string, split ...string) string {
+	delimiter := ","
+	if len(split) > 0 {
+		delimiter = split[0]
+	}
+	var result []string
+	for _, value := range values {
+		result = append(result, fmt.Sprintf("%s%v%s", quote, value, quote))
+	}
+	return strings.Join(result, delimiter)
+}
+
+// StrSliceJoin 数字合并
+func StrSliceJoin(values []string) string {
+	return SliceJoin(values, `"`)
+}
+
+// NumberSliceJoin 数字合并
+func NumberSliceJoin[T NumberType](values []T) string {
+	return SliceJoin(values, "")
 }

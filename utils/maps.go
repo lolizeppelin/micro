@@ -91,7 +91,8 @@ func (m *SyncMap[K, V]) Store(key K, value V) {
 }
 
 func (m *SyncMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
-	return m.storages.Swap(key, value)
+	a, loaded := m.storages.Swap(key, value)
+	return a.(V), loaded
 }
 
 func (m *SyncMap[K, V]) All() map[K]V {
