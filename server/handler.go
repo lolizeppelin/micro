@@ -120,6 +120,8 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 		oteltrace.WithAttributes(
 			attribute.String("protocol", protocol),
 			attribute.String("accept", accept),
+			attribute.String("service", g.opts.Name),
+			attribute.String("version", g.opts.Version.Version()),
 			attribute.String("name", handler.Name),
 			attribute.String("resource", handler.Resource),
 			attribute.Bool("internal", handler.Internal),
