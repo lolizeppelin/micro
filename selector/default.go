@@ -11,12 +11,17 @@ import (
 )
 
 type registrySelector struct {
-	so Options
-	rc cache.Cache
+	so   Options
+	rc   cache.Cache
+	name string
 }
 
 func (c *registrySelector) newCache(ttl time.Duration) cache.Cache {
 	return cache.New(c.so.Registry, ttl)
+}
+
+func (c *registrySelector) Name() string {
+	return c.name
 }
 
 func (c *registrySelector) Select(service string, filters ...Filter) (Next, error) {
@@ -70,15 +75,20 @@ func NewSelector(opts ...Option) (Selector, error) {
 	if _opts.Registry == nil {
 		return nil, fmt.Errorf("no register server found")
 	}
+	var name string
 	if _opts.Strategy == nil {
+		name = "score-default"
 		_opts.Strategy = NewSharedStrategy(
 			[]string{
 				utils.RandomHex(16),
 				utils.RandomHex(16),
 			})
+	} else {
+		name = "custom"
 	}
 	s := &registrySelector{
-		so: _opts,
+		so:   _opts,
+		name: name,
 	}
 	s.rc = s.newCache(_opts.TTL)
 	return s, nil

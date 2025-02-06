@@ -1,25 +1,50 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/selector"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/utils"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // next endpoint删选
-func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next, error) {
+func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOptions) (selector.Next, error) {
 
 	endpoint := request.Endpoint()
 	filters := opts.Filters
 	version := request.Version()
 	protocols := request.Protocols()
 
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(CallScope)
+	ctx, span = tracer.Start(ctx, "node.select",
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+		oteltrace.WithAttributes(
+			attribute.String("node.selector", r.opts.Selector.Name()),
+		),
+	)
+	if opts.Node != "" {
+		span.SetAttributes(attribute.String("node.select", opts.Node))
+	}
+
+	defer span.End()
+
 	// 标准过滤器
 	filters = utils.InsertSlice(opts.Filters,
 		func(services []*micro.Service) ([]*micro.Service, error) {
 			var matched []*micro.Service
+
+			span.SetAttributes(attribute.Int("filter.services", len(services)))
+
+			defer func() {
+				span.SetAttributes(attribute.Int("filter.matched", len(matched)))
+			}()
+
 			for _, s := range services {
 				// 主版本不匹配
 				if version != nil && version.Major != s.Version {
@@ -82,18 +107,20 @@ func (r *rpcClient) next(request micro.Request, opts CallOptions) (selector.Next
 					matched = append(matched, s)
 				}
 			}
+
 			return matched, nil
 		})
 
 	service := request.Service()
 	// get next nodes from the selector
 	next, err := r.opts.Selector.Select(service, filters...)
+
 	if err != nil {
 		if errors.Is(err, micro.ErrSelectServiceNotFound) {
-			return nil, exc.ServiceUnavailable("go.micro.client", err.Error())
+			return nil, exc.ServiceUnavailable("micro.client", err.Error())
 		}
 		if errors.Is(err, micro.ErrNoneServiceAvailable) {
-			return nil, exc.ServiceUnavailable("go.micro.client", err.Error())
+			return nil, exc.ServiceUnavailable("micro.client", err.Error())
 		}
 		if errors.Is(err, micro.ErrSelectEndpointNotFound) {
 			return nil, exc.NotFound("go.micro.client", err.Error())

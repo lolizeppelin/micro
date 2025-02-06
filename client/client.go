@@ -11,6 +11,12 @@ import (
 	"net/url"
 )
 
+const (
+	CallScope   = "micro/client/call"
+	PushScope   = "micro/client/push"
+	StreamScope = "micro/client/stream"
+)
+
 // Client is the interface used to make requests to services.
 // It supports Request/Response via Transport and Publishing via the Broker.
 // It also supports bidirectional streaming of requests.
@@ -19,6 +25,7 @@ type Client interface {
 	RPC(ctx context.Context, req micro.Request, res *micro.Response, opts ...CallOption) error
 	Stream(ctx context.Context, req micro.Request, opts ...CallOption) (micro.Stream, error)
 	Publish(ctx context.Context, req micro.Request, opts ...CallOption) error
+	Name() string
 }
 
 // Closer handle client close.

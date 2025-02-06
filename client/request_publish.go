@@ -6,7 +6,10 @@ import (
 	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/registry"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/transport"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...CallOption) error {
@@ -19,7 +22,7 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	node := callOpts.Node
 	// 有node id或版本限定,通过过滤器筛选node,设置节点
 	if node == "" && request.Version() != nil {
-		next, err := r.next(request, callOpts)
+		next, err := r.next(ctx, request, callOpts)
 		if err != nil {
 			return err
 		}
@@ -50,6 +53,23 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	}
 	// set the body
 	msg.Body = b
+
+	parent := tracing.ExtractSpan(ctx)
+	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
+
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(PushScope)
+	ctx, span = tracer.Start(ctx, topic,
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+		oteltrace.WithAttributes(
+			attribute.String("push.node", node),
+		),
+		oteltrace.WithAttributes(
+			attribute.String("rpc.transport", r.opts.Broker.Name()),
+		),
+	)
+
+	defer span.End()
 
 	return r.opts.Broker.Publish(ctx, topic, msg)
 

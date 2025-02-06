@@ -12,7 +12,6 @@ import (
 )
 
 type Options struct {
-	//Broker broker.DefaultBroker,
 	Id            uint32
 	Name          string
 	MaxMsgSize    int

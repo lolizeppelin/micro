@@ -6,8 +6,11 @@ import (
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/transport"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
@@ -18,6 +21,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	HandlerScope = "micro/server/handler"
 )
 
 func (g *RPCServer) handler(ctx context.Context, msg *tp.Message) (*tp.Message, error) {
@@ -86,7 +93,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 		}
 	}
 	// get peer from context
-	if p, trace := peer.FromContext(ctx); trace {
+	if p, find := peer.FromContext(ctx); find {
 		md["Remote"] = p.Addr.String()
 	}
 	ctx = transport.NewContext(ctx, md)
@@ -105,6 +112,26 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	protocol, ok := request.Header[micro.ContentType]
 	accept, ok := request.Header[micro.Accept]
+
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(HandlerScope)
+	ctx, span = tracer.Start(ctx, endpoint,
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+		oteltrace.WithAttributes(
+			attribute.String("protocol", protocol),
+			attribute.String("accept", accept),
+			attribute.String("name", handler.Name),
+			attribute.String("resource", handler.Resource),
+			attribute.Bool("internal", handler.Internal),
+		),
+	)
+
+	defer func() {
+		span.End()
+		if err != nil {
+			span.RecordError(err)
+		}
+	}()
 
 	if !handler.Match(protocol, accept) {
 		log.Warnf("reuqet protocol/accept not match")
@@ -127,7 +154,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	resp := results[0].Interface()
 	codec := encoding.GetCodec(request.Header[micro.Accept])
 	if codec == nil {
-		err = exc.InternalServerError("go.micro.server",
+		err = exc.InternalServerError("micro.handler",
 			"response codec '%s' not found", request.Header[micro.Accept])
 		return
 	}

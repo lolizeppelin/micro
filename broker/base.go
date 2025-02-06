@@ -11,6 +11,7 @@ type Broker interface {
 	Disconnect() error
 	Publish(ctx context.Context, topic string, m *transport.Message) error
 	Subscribe(topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
+	Name() string
 }
 
 // Handler is used to process messages via a subscription of a topic.

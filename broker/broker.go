@@ -13,6 +13,10 @@ type KafkaBroker struct {
 	opts     *Options
 }
 
+func (k *KafkaBroker) Name() string {
+	return "kafka"
+}
+
 func (k *KafkaBroker) Connect() error {
 	if k.producer != nil {
 		return fmt.Errorf("producer connected")

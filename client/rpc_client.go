@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/codec"
-	"time"
-
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/transport"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"time"
 )
 
 type rpcClient struct {
@@ -17,6 +19,10 @@ type rpcClient struct {
 	pool *transport.Pool
 
 	seq uint64
+}
+
+func (r *rpcClient) Name() string {
+	return "grpc"
 }
 
 // next returns an iterator for the next nodes to call.
@@ -38,22 +44,49 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 		opt(&callOpts)
 	}
 
-	next, err := r.next(request, callOpts)
+	parent := tracing.ExtractSpan(ctx)
+	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
+
+	next, err := r.next(ctx, request, callOpts)
 	if err != nil {
 		return nil, err
 	}
 
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(CallScope)
+	name := fmt.Sprintf("%s.%s.%s", request.Method(), request.Service(), request.Endpoint())
+
+	defer span.End()
+
 	// check if we already have a deadline
 	d, ok := ctx.Deadline()
 	if !ok {
+		ctx, span = tracer.Start(ctx, name,
+			oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+			oteltrace.WithAttributes(
+				attribute.String("rpc.transport", r.Name()),
+			),
+			oteltrace.WithAttributes(
+				attribute.Int64("timeout", int64(callOpts.RequestTimeout)),
+			))
 		// no deadline so we create a new one
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, callOpts.RequestTimeout)
-
 		defer cancel()
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
+		ctx, span = tracer.Start(ctx, name,
+			oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+			oteltrace.WithAttributes(
+				attribute.String("call.node", callOpts.Node),
+			),
+			oteltrace.WithAttributes(
+				attribute.String("rpc.transport", r.Name()),
+			),
+			oteltrace.WithAttributes(
+				attribute.Int64("deadline", int64(time.Until(d))),
+			))
 		opt := WithRequestTimeout(time.Until(d))
 		opt(&callOpts)
 	}
@@ -157,7 +190,24 @@ func (r *rpcClient) Stream(ctx context.Context, request micro.Request, opts ...C
 		opt(&callOpts)
 	}
 
-	next, err := r.next(request, callOpts)
+	parent := tracing.ExtractSpan(ctx)
+	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
+
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(StreamScope)
+	name := fmt.Sprintf("%s.%s.%s", request.Method(), request.Service(), request.Endpoint())
+	ctx, span = tracer.Start(ctx, name,
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+		oteltrace.WithAttributes(
+			attribute.String("stream.node", callOpts.Node),
+		),
+		oteltrace.WithAttributes(
+			attribute.String("rpc.transport", r.Name()),
+		),
+	)
+	defer span.End()
+
+	next, err := r.next(ctx, request, callOpts)
 	if err != nil {
 		return nil, err
 	}
