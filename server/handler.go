@@ -128,7 +128,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	defer func() {
 		span.End()
-		if err != nil {
+		if err != nil && span.IsRecording() {
 			span.RecordError(err)
 		}
 	}()

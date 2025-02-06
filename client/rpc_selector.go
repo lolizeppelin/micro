@@ -26,6 +26,7 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
 		oteltrace.WithAttributes(
 			attribute.String("node.selector", r.opts.Selector.Name()),
+			attribute.String("node.version", request.Version().Version()),
 		),
 	)
 	if opts.Node != "" {
