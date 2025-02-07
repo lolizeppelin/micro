@@ -179,7 +179,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	for i, hook := range handler.Hooks {
 		ctx, err = hook(ctx, query, body)
 		if err != nil {
-			log.Debug("request execute %d hook failed", i)
+			log.Debug("resource %s call %s, execute %d hook failed", handler.Resource, handler.Name, i)
 			return nil, err
 		}
 	}
