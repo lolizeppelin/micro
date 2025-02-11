@@ -3,8 +3,8 @@ package codec
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/encoding"
+	"google.golang.org/protobuf/proto"
 )
 
 var (

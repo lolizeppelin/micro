@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/lolizeppelin/micro"
+	"google.golang.org/protobuf/proto"
 	"io"
 )
 

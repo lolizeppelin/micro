@@ -1,10 +1,11 @@
 module github.com/lolizeppelin/micro
 
-go 1.21
+go 1.22.0
+
+toolchain go1.22.12
 
 require (
 	github.com/coreos/go-systemd/v22 v22.3.2
-	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/schema v1.4.1
 	github.com/minio/highwayhash v1.0.3
@@ -23,12 +24,12 @@ require (
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
 	go.uber.org/zap v1.17.0
-	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
+	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
 	golang.org/x/net v0.25.0
-	golang.org/x/sync v0.8.0
+	golang.org/x/sync v0.11.0
 	golang.org/x/text v0.15.0
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.35.2
 )
 
 require (
@@ -36,6 +37,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/swaggest/refl v1.3.0 // indirect
