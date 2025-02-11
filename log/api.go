@@ -26,16 +26,15 @@ func Setup(program string, logDir string, level logrus.Level) error {
 		l.SetReportCaller(true)
 	}
 	l.SetFormatter(formatter)
-
+	LOG = l.Logger().WithFields(logrus.Fields{"program": program})
 	// 发送SIGTERM给自身进程
 	l.Logger().ExitFunc = func(i int) {
 		p, _ := os.FindProcess(os.Getpid())
 		if p != nil {
+			LOG.Warnf("logrus send exit signal")
 			_ = p.Signal(syscall.SIGTERM)
 		}
 	}
-
-	LOG = l.Logger().WithFields(logrus.Fields{"program": program})
 	return nil
 }
 
