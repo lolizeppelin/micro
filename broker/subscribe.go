@@ -2,10 +2,29 @@ package broker
 
 import (
 	"context"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"sync"
 )
+
+func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...SubscribeOption) (Subscriber, error) {
+	options := NewSubscribeOptions(opts...)
+	client, err := NewKafkaConsumer(k.opts.Address, topic, options)
+	if err != nil {
+		return nil, err
+	}
+	subscriber := &KafkaSubscriber{
+		topic:     topic,
+		client:    client,
+		handler:   handler,
+		fallback:  k.opts.ErrorHandler,
+		unmarshal: options.Unmarshal,
+		stop:      make(chan struct{}),
+	}
+	subscriber.start()
+	return subscriber, nil
+}
 
 type KafkaSubscriber struct {
 	topic     string
@@ -27,7 +46,7 @@ func (s *KafkaSubscriber) Unsubscribe() error {
 	s.wg.Wait() // 等待循环推出
 	for {       // 处理剩余记录
 		fetches := s.client.PollRecords(ctx, 100)
-		if s.publish(fetches) <= 0 {
+		if s.fire(fetches) <= 0 {
 			break
 		}
 	}
@@ -45,13 +64,13 @@ STOP:
 			break STOP
 		default:
 			fetches := s.client.PollRecords(ctx, 100)
-			s.publish(fetches)
+			s.fire(fetches)
 		}
 	}
 	s.wg.Done()
 }
 
-func (s *KafkaSubscriber) publish(fetches kgo.Fetches) int {
+func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 	records := fetches.Records()
 	if len(records) <= 0 {
 		return 0
@@ -62,27 +81,19 @@ func (s *KafkaSubscriber) publish(fetches kgo.Fetches) int {
 			s.fallback(1, record, err)
 			continue
 		}
+		headers := make(map[string]string)
+		for _, header := range record.Headers {
+			headers[header.Key] = string(header.Value)
+		}
+		ctx := tracing.Extract(headers)
+
 		event := &kafkaEvent{
 			msg: msg,
 		}
-		if err = s.handler(event); err != nil {
+		if err = s.handler(ctx, event); err != nil {
 			s.fallback(2, record, err)
 		}
 
 	}
 	return len(records)
-}
-
-/* ------------- event -------------*/
-
-type kafkaEvent struct {
-	msg *transport.Message
-}
-
-func (s *kafkaEvent) Message() *transport.Message {
-	return s.msg
-}
-
-func (s *kafkaEvent) Ack() error {
-	return nil
 }

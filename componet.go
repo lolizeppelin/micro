@@ -2,7 +2,12 @@ package micro
 
 import (
 	"context"
+	"golang.org/x/exp/slices"
 	"net/url"
+)
+
+var (
+	components []Component
 )
 
 type PreExecuteHook func(context.Context, url.Values, []byte) (context.Context, error)
@@ -65,3 +70,11 @@ func (*ComponentBase) AfterInit()                      {}
 func (*ComponentBase) BeforeShutdown()                 {}
 func (*ComponentBase) Shutdown()                       {}
 func (*ComponentBase) Hooks(_ string) []PreExecuteHook { return nil }
+
+func RegComponent(component Component) {
+	components = append(components, component)
+}
+
+func LoadComponents() []Component {
+	return slices.Clone(components)
+}

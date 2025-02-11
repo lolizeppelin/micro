@@ -10,6 +10,22 @@ type propagateKey struct{}
 
 var _PropagateCtxKey = propagateKey{}
 
+// Extract  from carrier into context
+func Extract(carrier map[string]string) context.Context {
+	propagator := GetPropagator()
+	c := propagation.MapCarrier(carrier)
+	ctx := propagator.Extract(context.Background(), c)
+	return context.WithValue(ctx, _PropagateCtxKey, c)
+}
+
+// Inject  from ctx into carrier
+func Inject(ctx context.Context, carrier map[string]string) context.Context {
+	propagator := GetPropagator()
+	c := propagation.MapCarrier(carrier)
+	propagator.Inject(ctx, c)
+	return context.WithValue(ctx, _PropagateCtxKey, c)
+}
+
 func ExtractSpan(ctx context.Context) oteltrace.SpanContext {
 	span := oteltrace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -30,7 +46,5 @@ func InjectSpan(ctx context.Context, carrier map[string]string) context.Context 
 	if !span.SpanContext().IsValid() {
 		return ctx
 	}
-	propagator := GetPropagator()
-	propagator.Inject(ctx, propagation.MapCarrier(carrier))
-	return context.WithValue(ctx, _PropagateCtxKey, carrier)
+	return Inject(ctx, carrier)
 }

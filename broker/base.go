@@ -17,7 +17,7 @@ type Broker interface {
 // Handler is used to process messages via a subscription of a topic.
 // The handler is passed a publication interface which contains the
 // message and optional Ack method to acknowledge receipt of the message.
-type Handler func(Event) error
+type Handler func(ctx context.Context, event Event) error
 
 // Message is a message send/received from the broker.
 
@@ -31,4 +31,18 @@ type Event interface {
 type Subscriber interface {
 	Topic() string
 	Unsubscribe() error
+}
+
+/* ------------- event -------------*/
+
+type kafkaEvent struct {
+	msg *transport.Message
+}
+
+func (s *kafkaEvent) Message() *transport.Message {
+	return s.msg
+}
+
+func (s *kafkaEvent) Ack() error {
+	return nil
 }

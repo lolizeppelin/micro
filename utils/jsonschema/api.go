@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/lolizeppelin/micro/utils"
+	"github.com/lolizeppelin/micro/utils/ast"
 	"github.com/swaggest/jsonschema-go"
 	"reflect"
+	"strings"
 )
 
 func gettype(typ *jsonschema.Type) jsonschema.SimpleType {
@@ -104,14 +106,30 @@ func Schema(target reflect.Type, additional bool) (map[string]any, error) {
 	return m, nil
 }
 
+func GetComment(method reflect.Method) *Comment {
+	comment, _ := ast.GetComment(method)
+	if comment == "" {
+		return nil
+	}
+	comments := strings.Split(comment, "\n")
+	if len(comments) == 0 {
+		return nil
+	}
+	return &Comment{
+		Summary:     strings.TrimSpace(comments[0]),
+		Description: strings.TrimSpace(strings.Join(comments[1:], "\n")),
+	}
+}
+
 // General 通用api
-func General(path, method string, metadata map[string]string,
-	query reflect.Type, req reflect.Type, res reflect.Type) (api APIPath, err error) {
+func General(path, name string, metadata map[string]string,
+	query reflect.Type, req reflect.Type, res reflect.Type,
+	method reflect.Method, comment *Comment) (api APIPath, err error) {
 
 	p := APIPath{
 		Path: path,
 		Request: &Request{
-			Method: method,
+			Method: name,
 		},
 		Responses: []*Response{
 			{
@@ -119,6 +137,11 @@ func General(path, method string, metadata map[string]string,
 				Description: "success",
 			},
 		},
+	}
+	if comment == nil {
+		p.Comment = GetComment(method)
+	} else {
+		p.Comment = &Comment{Summary: comment.Summary, Description: comment.Description}
 	}
 	var m map[string]any
 	if query != nil {

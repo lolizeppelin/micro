@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"net"
 	"sync"
@@ -50,6 +52,7 @@ func newGRPCServer(opts *Options) *RPCServer {
 		grpc.MaxSendMsgSize(opts.MaxMsgSize),
 		//grpc.UnknownServiceHandler(srv.handler),
 		grpc.ConnectionTimeout(10 * time.Second),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	_opts = append(_opts, opts.GrpcOpts...)
@@ -191,6 +194,15 @@ func (g *RPCServer) Stop() error {
 }
 
 func NewServer(opts *Options) (*RPCServer, error) {
+
+	if len(opts.Components) == 0 {
+		opts.Components = micro.LoadComponents()
+	}
+
+	if len(opts.Components) == 0 {
+		return nil, fmt.Errorf("no components found")
+	}
+
 	if opts.Listener == nil {
 		ls, err := net.Listen("tcp", "127.0.0.1:1780")
 		if err != nil {

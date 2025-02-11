@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/lolizeppelin/micro/transport"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"time"
@@ -19,12 +20,16 @@ func (t *grpcTransport) Dial(addr string, timeout time.Duration, stream bool) (t
 
 	options := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any,
+			cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+			ctx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	// dial the server
-	conn, err := grpc.DialContext(ctx, addr, options...)
+	conn, err := grpc.NewClient(addr, options...)
 	if err != nil {
 		return nil, err
 	}

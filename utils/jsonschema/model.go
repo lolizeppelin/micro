@@ -17,10 +17,14 @@ type Response struct {
 	Body        *ContentBody `json:"body,omitempty" description:"返回结构"`
 }
 
+type Comment struct {
+	Summary     string `json:"summary,omitempty" description:"接口概述"`
+	Description string `json:"description,omitempty"  description:"接口详细说明"`
+}
+
 type APIPath struct {
-	Path        string      `json:"path"  description:"接口路径"`
-	Summary     string      `json:"summary,omitempty"  description:"接口概述"`
-	Description string      `json:"description,omitempty"  description:"接口详细说明"`
-	Request     *Request    `json:"request,omitempty" description:"请求"`
-	Responses   []*Response `json:"responses,omitempty" description:"返回"`
+	Path      string      `json:"path"  description:"接口路径"`
+	Comment   *Comment    `json:"comment,omitempty"  description:"接口注释"`
+	Request   *Request    `json:"request,omitempty" description:"请求"`
+	Responses []*Response `json:"responses,omitempty" description:"返回"`
 }

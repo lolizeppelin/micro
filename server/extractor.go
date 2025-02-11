@@ -7,9 +7,12 @@ import (
 	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
+	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/encoding"
 	"net/http"
 	"net/url"
@@ -93,7 +96,7 @@ type Handler struct {
 	BodyValidator  *gojsonschema.Schema   // 请求载荷校验器
 	Response       reflect.Type           // 返回参数
 	Metadata       map[string]string      // 元数据
-	Internal       bool                   // 内部rpc，不对外
+	Internal       bool                   // 内部rpc，不对外, 文档接口与http api需要屏蔽
 	Hooks          []micro.PreExecuteHook // 执行前
 }
 
@@ -101,6 +104,22 @@ type Handler struct {
 BuildArgs rpc转发将请求转数据转化为反射调用参数
 */
 func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
+
+	var err error
+	var span oteltrace.Span
+
+	tracer := tracing.GetTracer(HandlerScope)
+	ctx, span = tracer.Start(ctx, fmt.Sprintf("build.%s.%s", handler.Resource, handler.Name),
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+	)
+
+	defer func() {
+		if err != nil && span.IsRecording() {
+			span.RecordError(err)
+		}
+		span.End()
+	}()
+
 	if handler.Query == nil && handler.Request == nil {
 		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx)}, nil
 	}
@@ -109,16 +128,20 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	if handler.Query == nil {
 		_query = reflect.ValueOf(nil)
 	} else { // validator query parameters
+		span.SetAttributes(attribute.String("query.verify", "decode"))
 		_query = reflect.New(handler.Query.Elem())
 		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
 		// url.Values转结构体
 		p := _query.Interface()
-		if err := codec.UnmarshalQuery(endpoint, query, p); err != nil {
+		if err = codec.UnmarshalQuery(endpoint, query, p); err != nil {
 			log.Debug("unmarshal request query error")
-			return nil, exc.BadRequest("micro.server", "Unmarshal request query failed")
+			err = exc.BadRequest("micro.server", "Unmarshal request query failed")
+			return nil, err
 		}
+		span.SetAttributes(attribute.String("query.verify", "validate"))
 		// 进行json schema校验
-		result, err := handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
+		var result *gojsonschema.Result
+		result, err = handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
 		if err != nil {
 			log.Debug("validate request query error")
 			return nil, err
@@ -129,12 +152,13 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
-			return nil, exc.BadRequest("micro.server", msg)
+			err = exc.BadRequest("micro.server", msg)
+			return nil, err
 		}
 	}
 
-	var err error
 	if handler.Request == nil {
+		span.SetAttributes(attribute.String("query.verify", "hook"))
 		for i, hook := range handler.Hooks {
 			ctx, err = hook(ctx, query, body)
 			if err != nil {
@@ -144,17 +168,23 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		}
 		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
+
+	span.SetAttributes(attribute.String("body.verify", "protocol"))
 	// 请求协议
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
-		return nil, exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
+		err = exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
+		return nil, err
 	}
 	// body使用jsonschema校验 TODO 非json无法校验,需要处理
 	if handler.BodyValidator != nil {
-		result, err := handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
+		span.SetAttributes(attribute.String("body.verify", "validate"))
+		var result *gojsonschema.Result
+		result, err = handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
 		if err != nil {
 			log.Debug("validate request body error")
-			return nil, exc.BadRequest("micro.server", "decode body failed")
+			err = exc.BadRequest("micro.server", "decode body failed")
+			return nil, err
 		}
 		if !result.Valid() {
 			log.Debug("validate request body failed")
@@ -162,7 +192,8 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			for _, desc := range result.Errors() {
 				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
-			return nil, exc.BadRequest("micro.server", msg)
+			err = exc.BadRequest("micro.server", msg)
+			return nil, err
 		}
 	}
 	// 按协议解析数据流
@@ -172,11 +203,13 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	} else {
 		arg = reflect.New(handler.Request.Elem())
 	}
+	span.SetAttributes(attribute.String("body.verify", "decode"))
 	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
 		return nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 
 	for i, hook := range handler.Hooks {
+		span.SetAttributes(attribute.String("body.verify", "validate"))
 		ctx, err = hook(ctx, query, body)
 		if err != nil {
 			log.Debug("resource %s call %s, execute %d hook failed", handler.Resource, handler.Name, i)
@@ -349,11 +382,12 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 				metadata["res"] = "json"
 			}
 		}
+		handlers = append(handlers, handler)
+
 		handler.Metadata = metadata
 		switch method.Name {
 		case "Get", "List", "Create", "Update", "Patch", "Delete": // restful curd接口
 			handler.Name = method.Name
-			handlers = append(handlers, handler)
 		default:
 			matches := curdPrefix.FindStringSubmatch(method.Name)
 			if matches == nil { // 没有前缀,网关接口
@@ -371,8 +405,6 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 					}
 					handler.Internal = true
 					methods[name] = handler
-				} else { // GET/POST/PUT/PATCH/DELETE, 非标restful接口
-					handlers = append(handlers, handler)
 				}
 				handler.Name = name
 			}
