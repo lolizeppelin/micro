@@ -106,8 +106,8 @@ func Schema(target reflect.Type, additional bool) (map[string]any, error) {
 	return m, nil
 }
 
-func GetComment(method reflect.Method) *Comment {
-	comment, _ := ast.GetComment(method)
+func GetComment(component reflect.Type, method reflect.Method) *Comment {
+	comment, _ := ast.GetComment(component, method)
 	if comment == "" {
 		return nil
 	}
@@ -124,7 +124,7 @@ func GetComment(method reflect.Method) *Comment {
 // General 通用api
 func General(path, name string, metadata map[string]string,
 	query reflect.Type, req reflect.Type, res reflect.Type,
-	method reflect.Method, comment *Comment) (api APIPath, err error) {
+	component reflect.Type, method reflect.Method, comment *Comment) (api APIPath, err error) {
 
 	p := APIPath{
 		Path: path,
@@ -139,7 +139,7 @@ func General(path, name string, metadata map[string]string,
 		},
 	}
 	if comment == nil {
-		p.Comment = GetComment(method)
+		p.Comment = GetComment(component, method)
 	} else {
 		p.Comment = &Comment{Summary: comment.Summary, Description: comment.Description}
 	}
