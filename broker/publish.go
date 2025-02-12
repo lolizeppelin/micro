@@ -42,7 +42,7 @@ func (k *KafkaBroker) Publish(ctx context.Context, topic string, msg *transport.
 	}
 
 	k.producer.TryProduce(ctx, record, func(record *kgo.Record, err error) {
-		k.opts.ErrorHandler(0, record, err)
+		k.opts.ErrorHandler("push", record, err)
 	})
 	return nil
 }

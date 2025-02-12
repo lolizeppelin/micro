@@ -31,7 +31,7 @@ type KafkaSubscriber struct {
 	client    *kgo.Client
 	handler   Handler
 	stop      chan struct{}
-	fallback  func(uint8, *kgo.Record, error)
+	fallback  func(string, *kgo.Record, error)
 	wg        *sync.WaitGroup
 	unmarshal func([]byte) (*transport.Message, error)
 }
@@ -76,24 +76,36 @@ func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 		return 0
 	}
 	for _, record := range records {
-		msg, err := s.unmarshal(record.Value)
+		ctx, msg, err := Decode(record, s.unmarshal)
 		if err != nil {
-			s.fallback(1, record, err)
+			s.fallback("decode", record, err)
 			continue
 		}
-		headers := make(map[string]string)
-		for _, header := range record.Headers {
-			headers[header.Key] = string(header.Value)
-		}
-		ctx := tracing.Extract(headers)
-
 		event := &kafkaEvent{
 			msg: msg,
 		}
 		if err = s.handler(ctx, event); err != nil {
-			s.fallback(2, record, err)
+			s.fallback("handler", record, err)
 		}
 
 	}
 	return len(records)
+}
+
+func Decode(record *kgo.Record, unmarshal ...SubscribeUnmarshal) (ctx context.Context, msg *transport.Message, err error) {
+	if len(unmarshal) > 0 {
+		msg, err = unmarshal[0](record.Value)
+	} else {
+		msg, err = _unmarshal(record.Value)
+	}
+
+	if err != nil {
+		return
+	}
+	headers := make(map[string]string)
+	for _, header := range record.Headers {
+		headers[header.Key] = string(header.Value)
+	}
+	ctx = tracing.Extract(headers)
+	return
 }

@@ -16,7 +16,7 @@ type Options struct {
 
 	// Handler executed when error happens in broker message
 	// processing
-	ErrorHandler func(uint8, *kgo.Record, error)
+	ErrorHandler func(string, *kgo.Record, error)
 
 	TLSConfig *tls.Config
 	Address   []string
@@ -33,7 +33,7 @@ func _unmarshal(b []byte) (*transport.Message, error) {
 	return msg, nil
 }
 
-func _errHandler(u uint8, record *kgo.Record, err error) {
+func _errHandler(u string, record *kgo.Record, err error) {
 	return
 }
 
@@ -48,7 +48,7 @@ func NewOptions(opts ...Option) *Options {
 	return &options
 }
 
-func Registry(registry micro.Registry) Option {
+func WithRegistry(registry micro.Registry) Option {
 	return func(o *Options) {
 		o.Registry = registry
 	}
@@ -66,7 +66,7 @@ func Address(address ...string) Option {
 
 // ErrorHandler will catch all broker errors that cant be handled
 // in normal way, for example Codec errors.
-func ErrorHandler(fallback func(uint8, *kgo.Record, error)) Option {
+func ErrorHandler(fallback func(string, *kgo.Record, error)) Option {
 	return func(o *Options) {
 		o.ErrorHandler = fallback
 	}
@@ -81,6 +81,8 @@ func Secure(b bool) Option {
 
 /*------------- Subscribe -------------*/
 
+type SubscribeUnmarshal func([]byte) (*transport.Message, error)
+
 type SubscribeOptions struct {
 
 	// Subscribers with the same queue name
@@ -93,7 +95,7 @@ type SubscribeOptions struct {
 	AutoAck bool
 
 	// 解析
-	Unmarshal func([]byte) (*transport.Message, error)
+	Unmarshal SubscribeUnmarshal
 }
 
 type SubscribeOption func(*SubscribeOptions)
@@ -122,7 +124,7 @@ func DisableAutoAck() SubscribeOption {
 	}
 }
 
-func UnmarshalHander(unmarshal func([]byte) (*transport.Message, error)) SubscribeOption {
+func UnmarshalHandler(unmarshal SubscribeUnmarshal) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		o.Unmarshal = unmarshal
 	}
