@@ -18,9 +18,9 @@ func TestHash(t *testing.T) {
 	fmt.Println(d)
 	fmt.Println(e)
 
-	fmt.Println(Md5Hmac("afaga", "agaga"))
-	fmt.Println(Sha1Hmac("afaga", "agaga"))
-	fmt.Println(Sha256Hmac("afaga", "agaga"))
+	fmt.Println(Md5Hmac([]byte("afaga"), []byte("agaga")))
+	fmt.Println(Sha1Hmac([]byte("afaga"), []byte("agaga")))
+	fmt.Println(Sha256Hmac([]byte("afaga"), []byte("agaga")))
 
 	fmt.Printf("hash 1 to %d\n", HashStringToInt("0", 0, 3))
 	fmt.Printf("hash 1 to %d\n", HashStringToInt("1", 0, 3))

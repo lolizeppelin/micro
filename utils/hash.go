@@ -89,21 +89,21 @@ func CRC32Sum(value []byte) string {
 	return fmt.Sprintf("%08x", crc32.ChecksumIEEE(value))
 }
 
-func Sha1Hmac(value, salt string) string {
-	h := hmac.New(sha1.New, []byte(salt))
-	h.Write([]byte(value))
+func Sha1Hmac(value, key []byte) string {
+	h := hmac.New(sha1.New, key)
+	h.Write(value)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-func Sha256Hmac(value, salt string) string {
-	h := hmac.New(sha256.New, []byte(salt))
-	h.Write([]byte(value))
+func Sha256Hmac(value, key []byte) string {
+	h := hmac.New(sha256.New, key)
+	h.Write(value)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-func Md5Hmac(value, salt string) string {
-	h := hmac.New(md5.New, []byte(salt))
-	h.Write([]byte(value))
+func Md5Hmac(value, key []byte) string {
+	h := hmac.New(md5.New, key)
+	h.Write(value)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
