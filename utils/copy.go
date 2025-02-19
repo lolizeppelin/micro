@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 )
 
@@ -12,6 +13,11 @@ func CopySlice[T any](src []T) []T {
 	dst := make([]T, len(src))
 	copy(dst, src)
 	return dst
+}
+
+// CopyMap 拷贝map（maps.Clone）
+func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
+	return maps.Clone(m)
 }
 
 // DeepCopyMap 通过序列号深拷贝

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"sync"
 )
@@ -117,4 +118,16 @@ func (m *SyncMap[K, V]) DeleteAll() {
 
 func NewSyncMap[K comparable, V any]() *SyncMap[K, V] {
 	return new(SyncMap[K, V])
+}
+
+func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
+	return maps.Keys(m)
+}
+
+func MapValues[M ~map[K]V, K comparable, V any](m M) []V {
+	return maps.Values(m)
+}
+
+func MapClear[M ~map[K]V, K comparable, V any](m M) {
+	maps.Clear(m)
 }
