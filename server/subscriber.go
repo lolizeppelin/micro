@@ -63,10 +63,10 @@ func (s *Service) dispatch(ctx context.Context, event broker.Event) (err error) 
 	)
 
 	defer func() {
-		span.End()
 		if err != nil && span.IsRecording() {
 			span.RecordError(err)
 		}
+		span.End()
 	}()
 
 	wg := s.opts.WaitGroup
