@@ -111,8 +111,7 @@ func ToString(i any) (string, error) {
 }
 
 func UnsafeToString(i any) string {
-	v, _ := ToString(i)
-	return v
+	return fmt.Sprint(i)
 }
 
 func Abs[T NumberType](i T) T {
