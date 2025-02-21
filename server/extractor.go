@@ -109,8 +109,11 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	var span oteltrace.Span
 
 	tracer := tracing.GetTracer(HandlerScope)
-	ctx, span = tracer.Start(ctx, fmt.Sprintf("build.%s.%s", handler.Resource, handler.Name),
-		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+	ctx, span = tracer.Start(ctx, "handler.reflect",
+		oteltrace.WithAttributes(
+			attribute.String("resource", handler.Resource),
+			attribute.String("name", handler.Name),
+		),
 	)
 
 	defer func() {
@@ -121,6 +124,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	}()
 
 	if handler.Query == nil && handler.Request == nil {
+		span.AddEvent("skip")
 		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx)}, nil
 	}
 
@@ -128,7 +132,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	if handler.Query == nil {
 		_query = reflect.ValueOf(nil)
 	} else { // validator query parameters
-		span.SetAttributes(attribute.String("query.verify", "decode"))
+		span.AddEvent("query.decode")
 		_query = reflect.New(handler.Query.Elem())
 		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
 		// url.Values转结构体
@@ -138,7 +142,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 			err = exc.BadRequest("micro.server", "Unmarshal request query failed")
 			return nil, err
 		}
-		span.SetAttributes(attribute.String("query.verify", "validate"))
+		span.AddEvent("query.validate")
 		// 进行json schema校验
 		var result *gojsonschema.Result
 		result, err = handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
@@ -158,7 +162,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	}
 
 	if handler.Request == nil {
-		span.SetAttributes(attribute.String("query.verify", "hook"))
+		span.AddEvent("query.hook")
 		for i, hook := range handler.Hooks {
 			ctx, err = hook(ctx, query, body)
 			if err != nil {
@@ -169,7 +173,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
 
-	span.SetAttributes(attribute.String("body.verify", "protocol"))
+	span.AddEvent("body.protocol")
 	// 请求协议
 	_codec := encoding.GetCodec(protocol)
 	if _codec == nil {
@@ -178,7 +182,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	}
 	// body使用jsonschema校验 TODO 非json无法校验,需要处理
 	if handler.BodyValidator != nil {
-		span.SetAttributes(attribute.String("body.verify", "validate"))
+		span.AddEvent("body.validate")
 		var result *gojsonschema.Result
 		result, err = handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
 		if err != nil {
@@ -203,13 +207,13 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	} else {
 		arg = reflect.New(handler.Request.Elem())
 	}
-	span.SetAttributes(attribute.String("body.verify", "decode"))
+	span.AddEvent("body.decode")
 	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
 		return nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
 	}
 
 	for i, hook := range handler.Hooks {
-		span.SetAttributes(attribute.String("body.verify", "validate"))
+		span.AddEvent("request.hook")
 		ctx, err = hook(ctx, query, body)
 		if err != nil {
 			log.Debug("resource %s call %s, execute %d hook failed", handler.Resource, handler.Name, i)

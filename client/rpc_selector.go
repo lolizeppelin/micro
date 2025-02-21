@@ -22,15 +22,17 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 
 	var span oteltrace.Span
 	tracer := tracing.GetTracer(CallScope)
-	ctx, span = tracer.Start(ctx, "node.select",
+	ctx, span = tracer.Start(ctx, "node.selector",
 		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
 		oteltrace.WithAttributes(
-			attribute.String("node.selector", r.opts.Selector.Name()),
-			attribute.String("node.version", request.Version().Version()),
+			attribute.String("name", r.opts.Selector.Name()),
+			attribute.String("endpoint", request.Endpoint()),
+			attribute.String("name", r.opts.Selector.Name()),
+			attribute.String("version", request.Version().Version()),
 		),
 	)
 	if opts.Node != "" {
-		span.SetAttributes(attribute.String("node.select", opts.Node))
+		span.AddEvent("selector", oteltrace.WithAttributes(attribute.String("node", opts.Node)))
 	}
 
 	defer span.End()
@@ -39,11 +41,9 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 	filters = utils.InsertSlice(opts.Filters,
 		func(services []*micro.Service) ([]*micro.Service, error) {
 			var matched []*micro.Service
-
-			span.SetAttributes(attribute.Int("filter.services", len(services)))
-
+			span.AddEvent("selector", oteltrace.WithAttributes(attribute.Int("services", len(services))))
 			defer func() {
-				span.SetAttributes(attribute.Int("filter.matched", len(matched)))
+				span.AddEvent("selector", oteltrace.WithAttributes(attribute.Int("matched", len(matched))))
 			}()
 
 			for _, s := range services {
@@ -117,6 +117,7 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 	next, err := r.opts.Selector.Select(service, filters...)
 
 	if err != nil {
+		span.RecordError(err)
 		if errors.Is(err, micro.ErrSelectServiceNotFound) {
 			return nil, exc.ServiceUnavailable("micro.client", err.Error())
 		}

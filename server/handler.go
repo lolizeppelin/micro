@@ -61,8 +61,20 @@ func (g *RPCServer) handler(ctx context.Context, msg *tp.Message) (*tp.Message, 
 
 func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Message) (err error) {
 
+	var span oteltrace.Span
+	tracer := tracing.GetTracer(HandlerScope)
+	ctx, span = tracer.Start(ctx, " process.request",
+		oteltrace.WithAttributes(
+			attribute.String("service", g.opts.Name),
+			attribute.String("version", g.opts.Version.Version()),
+		),
+	)
+
 	defer func() {
+		span.End()
+
 		if r := recover(); r != nil {
+			span.AddEvent("panic")
 			log.Errorf("panic recovered: %v, stack: %s", r, string(debug.Stack()))
 			err = exc.InternalServerError("go.micro.server", "panic recovered: %v", r)
 		}
@@ -70,10 +82,12 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	endpoint, ok := request.Header[transport.Endpoint]
 	if !ok {
+		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("headers", "endpoint")))
 		return exc.InternalServerError("go.micro.server", "endpoint not found from header")
 	}
 	serviceName, methodName, err := serviceMethod(endpoint)
 	if err != nil {
+		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("endpoint", "split")))
 		return exc.InternalServerError("go.micro.server", err.Error())
 	}
 	// copy the metadata to go-micro.metadata
@@ -107,33 +121,18 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	handler := g.service.Handler(serviceName, methodName)
 	if handler == nil {
+		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("handler", "none")))
 		return status.New(codes.Unimplemented, "unknown service or method").Err()
 	}
 
 	protocol, ok := request.Header[micro.ContentType]
 	accept, ok := request.Header[micro.Accept]
 
-	var span oteltrace.Span
-	tracer := tracing.GetTracer(HandlerScope)
-	ctx, span = tracer.Start(ctx, endpoint,
-		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
-		oteltrace.WithAttributes(
-			attribute.String("protocol", protocol),
-			attribute.String("accept", accept),
-			attribute.String("service", g.opts.Name),
-			attribute.String("version", g.opts.Version.Version()),
-			attribute.String("name", handler.Name),
-			attribute.String("resource", handler.Resource),
-			attribute.Bool("internal", handler.Internal),
-		),
-	)
-
-	defer func() {
-		span.End()
-		if err != nil && span.IsRecording() {
-			span.RecordError(err)
-		}
-	}()
+	span.SetAttributes(attribute.String("protocol", protocol),
+		attribute.String("accept", accept),
+		attribute.String("name", handler.Name),
+		attribute.String("resource", handler.Resource),
+		attribute.Bool("internal", handler.Internal))
 
 	if !handler.Match(protocol, accept) {
 		log.Warnf("reuqet protocol/accept not match")
@@ -147,6 +146,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	results := handler.Method.Func.Call(args)
 	if handler.Response == nil {
+		span.AddEvent("success")
 		return
 	}
 	if e := results[1].Interface(); e != nil {
