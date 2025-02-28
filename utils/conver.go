@@ -10,10 +10,6 @@ import (
 	"strconv"
 )
 
-const (
-	TimestampFormat = "2006-01-02 15:04:05"
-)
-
 func IntToString[T IntType](value T) string {
 	return strconv.Itoa(int(value))
 }

@@ -15,7 +15,7 @@ type VersionedMap[K comparable, V Versioned] struct {
 
 func (m *VersionedMap[K, V]) LoadAndDelete(key K) (V, bool) {
 	m.lock.Lock()
-	m.lock.Unlock()
+	defer m.lock.Unlock()
 	v, ok := m.storages[key]
 	if !ok {
 		return v, false
@@ -26,14 +26,14 @@ func (m *VersionedMap[K, V]) LoadAndDelete(key K) (V, bool) {
 
 func (m *VersionedMap[K, V]) Load(key K) (V, bool) {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	v, ok := m.storages[key]
 	return v, ok
 }
 
 func (m *VersionedMap[K, V]) Store(key K, value V) {
 	m.lock.Lock()
-	m.lock.Unlock()
+	defer m.lock.Unlock()
 	m.storages[key] = value
 }
 
@@ -58,7 +58,7 @@ func (m *VersionedMap[K, V]) LoadOrStore(key K, value V) (ret V, find bool) {
 // StoreNew 存储一个新值、返回值表示是否存储成功
 func (m *VersionedMap[K, V]) StoreNew(key K, value V) bool {
 	m.lock.Lock()
-	m.lock.Unlock()
+	defer m.lock.Unlock()
 	v, ok := m.storages[key]
 	if !ok {
 		m.storages[key] = value
@@ -73,31 +73,31 @@ func (m *VersionedMap[K, V]) StoreNew(key K, value V) bool {
 
 func (m *VersionedMap[K, V]) Len() int {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	return len(m.storages)
 }
 
 func (m *VersionedMap[K, V]) Values() []V {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	return MapValues(m.storages)
 }
 
 func (m *VersionedMap[K, V]) Keys() []K {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	return MapKeys(m.storages)
 }
 
 func (m *VersionedMap[K, V]) Clone() map[K]V {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	return CopyMap(m.storages)
 }
 
 func (m *VersionedMap[K, V]) Clear() {
 	m.lock.RLock()
-	m.lock.RUnlock()
+	defer m.lock.RUnlock()
 	MapClear(m.storages)
 }
 

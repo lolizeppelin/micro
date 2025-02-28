@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/lolizeppelin/micro"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
@@ -71,13 +72,13 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 	)
 
 	defer func() {
-		span.End()
-
 		if r := recover(); r != nil {
 			span.AddEvent("panic")
 			log.Errorf("panic recovered: %v, stack: %s", r, string(debug.Stack()))
 			err = exc.InternalServerError("go.micro.server", "panic recovered: %v", r)
 		}
+
+		span.End()
 	}()
 
 	endpoint, ok := request.Header[transport.Endpoint]
@@ -135,6 +136,10 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 		attribute.Bool("internal", handler.Internal))
 
 	if !handler.Match(protocol, accept) {
+		span.AddEvent("missmatch",
+			oteltrace.WithAttributes(
+				attribute.String("protocol", protocol),
+				attribute.String("accept", accept)))
 		log.Warnf("reuqet protocol/accept not match")
 	}
 
@@ -150,7 +155,12 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 		return
 	}
 	if e := results[1].Interface(); e != nil {
-		err = e.(error)
+		var match bool
+		err, match = e.(error)
+		if !match {
+			err = fmt.Errorf("unknown handler call resulst")
+			span.RecordError(err)
+		}
 		return
 	}
 	resp := results[0].Interface()
