@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/sqids/sqids-go"
-	_ "github.com/sqids/sqids-go"
 )
 
 func ToBase62Bytes(n int) (s []byte) {
