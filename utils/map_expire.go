@@ -21,6 +21,8 @@ type ExpireMap[K comparable, V any] struct {
 	placeholder V                           // 默认空值
 
 	pool chan K
+
+	handler func(K, error)
 }
 
 func (m *ExpireMap[K, V]) Delete(key K) {
@@ -66,7 +68,13 @@ func (m *ExpireMap[K, V]) SyncLoad(key K) (V, bool) {
 	}
 
 	v, err := m.fetch(key)
-	if err != nil || len(v) == 0 {
+	if err != nil {
+		if m.handler != nil {
+			m.handler(key, err)
+		}
+		return m.placeholder, false
+	}
+	if len(v) == 0 {
 		return m.placeholder, false
 	}
 	payload, find := v[key]
@@ -197,7 +205,9 @@ func (m *ExpireMap[K, V]) flush(values map[K]V) {
 	}
 }
 
-func NewExpireMap[K comparable, V any](fetch func(...K) (map[K]V, error),
+func NewExpireMap[K comparable, V any](
+	fetch func(...K) (map[K]V, error),
+	handler func(K, error),
 	expire int64, delay ...int64) *ExpireMap[K, V] {
 	if fetch == nil {
 		panic("fetch function not found")
@@ -216,6 +226,7 @@ func NewExpireMap[K comparable, V any](fetch func(...K) (map[K]V, error),
 
 	m := &ExpireMap[K, V]{
 		fetch:    fetch,
+		handler:  handler,
 		expire:   expire,
 		delay:    async,
 		storages: map[K]*ExpiredItem[V]{},

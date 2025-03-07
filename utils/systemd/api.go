@@ -1,11 +1,12 @@
 package systemd
 
 import (
+	"errors"
 	"fmt"
 	"github.com/coreos/go-systemd/v22/daemon"
 )
 
-// ErrSdNotifyNoSocket is the error returned when the NOTIFY_SOCKET does not exist.
+var NotSupportSystemd = errors.New("config count not match")
 
 // Ready sends READY=1 to the systemd notify socket.
 func Ready() error {

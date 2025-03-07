@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/utils/systemd"
@@ -13,6 +14,22 @@ var (
 	die = make(chan struct{})
 )
 
+func Ready() error {
+	err := systemd.Ready()
+	if errors.Is(err, systemd.NotSupportSystemd) {
+		return nil
+	}
+	return err
+}
+
+func Stopping() error {
+	err := systemd.Stopping()
+	if errors.Is(err, systemd.NotSupportSystemd) {
+		return nil
+	}
+	return err
+}
+
 func Run(modules []micro.Module, daemon bool) error {
 	sg := make(chan os.Signal)
 
@@ -23,7 +40,7 @@ func Run(modules []micro.Module, daemon bool) error {
 	}
 
 	if daemon {
-		if err = systemd.Ready(); err != nil {
+		if err = Ready(); err != nil {
 			return err
 		}
 		signal.Notify(sg, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGABRT)
@@ -36,7 +53,7 @@ func Run(modules []micro.Module, daemon bool) error {
 			log.Info("------------------------------------------")
 			close(die)
 		}
-		return systemd.Stopping()
+		return Stopping()
 	}
 	return nil
 }

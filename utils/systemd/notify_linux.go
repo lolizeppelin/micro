@@ -4,7 +4,6 @@
 package systemd
 
 import (
-	"errors"
 	"github.com/coreos/go-systemd/v22/daemon"
 )
 
@@ -14,7 +13,7 @@ func SdNotify(state string) error {
 		return err
 	}
 	if !ok {
-		return errors.New("no systemd socket found")
+		return NotSupportSystemd
 	}
 	return nil
 }
