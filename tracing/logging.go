@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/lolizeppelin/micro/log"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"strings"
 )
@@ -58,22 +57,4 @@ func (e *LocalLOGExporter) Shutdown(ctx context.Context) error {
 
 func NewLogExporter() *LocalLOGExporter {
 	return &LocalLOGExporter{}
-}
-
-func NewLocalProvider(res *resource.Resource, fake ...bool) (*trace.TracerProvider, error) {
-	var exporter trace.SpanExporter
-
-	if len(fake) > 0 && fake[0] {
-		exporter = &FakeExporter{}
-	} else {
-		exporter = NewLogExporter()
-	}
-	provider := trace.NewTracerProvider(
-		trace.WithBatcher(exporter,
-			trace.WithBatchTimeout(0),
-			trace.WithMaxExportBatchSize(0),
-		),
-		trace.WithResource(res),
-	)
-	return provider, nil
 }

@@ -5,6 +5,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -43,4 +45,28 @@ func StartTrace(ctx context.Context, scope, name string,
 	return tracer.Start(ctx, name,
 		oteltrace.WithAttributes(attributes...),
 	)
+}
+
+func FakeTraceProvider(res *resource.Resource) *trace.TracerProvider {
+	exporter := &FakeExporter{}
+	provider := trace.NewTracerProvider(
+		trace.WithBatcher(exporter,
+			trace.WithBatchTimeout(0),
+			trace.WithMaxExportBatchSize(0),
+		),
+		trace.WithResource(res),
+	)
+	return provider
+}
+
+func LogTraceProvider(res *resource.Resource) *trace.TracerProvider {
+	exporter := NewLogExporter()
+	provider := trace.NewTracerProvider(
+		trace.WithBatcher(exporter,
+			trace.WithBatchTimeout(0),
+			trace.WithMaxExportBatchSize(0),
+		),
+		trace.WithResource(res),
+	)
+	return provider
 }

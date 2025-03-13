@@ -43,7 +43,7 @@ type MetricConfig struct {
 
 type OTELConf struct {
 	Disabled bool          `json:"disabled" description:"禁用追踪"`
-	Jaeger   *TracerConfig `json:"tracer" description:"Tracer配置"`
+	Tracer   *TracerConfig `json:"tracer" description:"Tracer配置"`
 	Metric   *MetricConfig `json:"metric" description:"Metric配置"`
 }
 
