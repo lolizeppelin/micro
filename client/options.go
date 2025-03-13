@@ -5,6 +5,8 @@ import (
 	"github.com/lolizeppelin/micro/broker"
 	"github.com/lolizeppelin/micro/selector"
 	"github.com/lolizeppelin/micro/transport"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"time"
 )
 
@@ -44,6 +46,8 @@ type Options struct {
 
 	// Default Call Options
 	CallOptions CallOptions
+
+	Credentials credentials.TransportCredentials
 }
 
 // NewOptions creates new Client options.
@@ -57,8 +61,9 @@ func NewOptions(options ...Option) Options {
 			ConnectionTimeout: transport.DefaultDialTimeout,
 			DialTimeout:       transport.DefaultDialTimeout,
 		},
-		PoolSize: DefaultPoolSize,
-		PoolTTL:  DefaultPoolTTL,
+		PoolSize:    DefaultPoolSize,
+		PoolTTL:     DefaultPoolTTL,
+		Credentials: insecure.NewCredentials(),
 	}
 
 	for _, o := range options {
@@ -97,6 +102,12 @@ func PoolTTL(d time.Duration) Option {
 func Broker(b broker.Broker) Option {
 	return func(o *Options) {
 		o.Broker = b
+	}
+}
+
+func Credentials(credentials credentials.TransportCredentials) Option {
+	return func(o *Options) {
+		o.Credentials = credentials
 	}
 }
 

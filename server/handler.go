@@ -64,7 +64,7 @@ func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Me
 
 	var span oteltrace.Span
 	tracer := tracing.GetTracer(HandlerScope)
-	ctx, span = tracer.Start(ctx, " process.request",
+	ctx, span = tracer.Start(ctx, "process.request",
 		oteltrace.WithAttributes(
 			attribute.String("service", g.opts.Name),
 			attribute.String("version", g.opts.Version.Version()),

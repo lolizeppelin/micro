@@ -45,7 +45,7 @@ func NewClient(opts Options) (Client, error) {
 		return nil, fmt.Errorf("not registry found")
 	}
 	if opts.Transport == nil {
-		opts.Transport = grpc.NewTransport()
+		opts.Transport = grpc.NewTransport(opts.Credentials)
 	}
 	if opts.Selector == nil {
 		s, _ := selector.NewSelector(selector.WithRegistry(opts.Registry))

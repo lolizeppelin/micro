@@ -5,6 +5,10 @@ import (
 	"github.com/lolizeppelin/micro/transport"
 )
 
+const (
+	HandlerScope = "micro/broker/handler"
+)
+
 // Broker is an interface used for asynchronous messaging.
 type Broker interface {
 	Connect() error

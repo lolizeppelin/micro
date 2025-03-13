@@ -53,6 +53,7 @@ func newGRPCServer(opts *Options) *RPCServer {
 		//grpc.UnknownServiceHandler(srv.handler),
 		grpc.ConnectionTimeout(10 * time.Second),
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.Creds(opts.Credentials),
 	}
 
 	_opts = append(_opts, opts.GrpcOpts...)

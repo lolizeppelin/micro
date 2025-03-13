@@ -5,6 +5,8 @@ import (
 	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/transport"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"sync"
 )
 
@@ -84,9 +86,20 @@ func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 		event := &kafkaEvent{
 			msg: msg,
 		}
+
+		var span oteltrace.Span
+		tracer := tracing.GetTracer(HandlerScope)
+		ctx, span = tracer.Start(ctx, "kafka.consume",
+			oteltrace.WithAttributes(
+				attribute.String("endpoint", msg.Header[transport.Endpoint]),
+			),
+		)
 		if err = s.handler(ctx, event); err != nil {
+			span.RecordError(err)
 			s.fallback("handler", record, err)
 		}
+
+		span.End()
 
 	}
 	return len(records)

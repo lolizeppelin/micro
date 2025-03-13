@@ -1,13 +1,51 @@
 package tracing
 
+import "C"
 import (
 	"context"
-	"github.com/lolizeppelin/micro/log"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/resource"
+	"github.com/lolizeppelin/micro/utils/tls"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"strings"
 )
+
+type OTELProvider interface {
+	ForceFlush(ctx context.Context) error
+	Shutdown(ctx context.Context) error
+}
+
+type TracerBatch struct {
+	Timeout int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
+	Size    int   `json:"size,omitempty"`
+	Queue   int   `json:"queue,omitempty"`
+}
+
+type TracerConfig struct {
+	Driver      string                 `json:"driver" description:"Tracer驱动"` // e.g jaeger
+	Endpoint    string                 `json:"endpoints" description:"接口地址"`
+	Batch       TracerBatch            `json:"batch" description:"批量上传配置"`
+	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`
+	Options     map[string]any         `json:"options,omitempty" description:"驱动独立参数参数"`
+	Credentials *tls.ClientCredentials `json:"credentials,omitempty" description:"ssl链接配置"`
+}
+
+type MetricBatch struct {
+	Timeout  int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
+	Interval int32 `json:"size,omitempty"`    // 测试环境填1方便调试
+}
+
+type MetricConfig struct {
+	Driver      string                 `json:"driver" description:"Metric驱动"` // e.g prometheus/victoriametrics/greptime
+	Endpoints   string                 `json:"endpoints" description:"Metric接口地址uri"`
+	Batch       MetricBatch            `json:"batch" description:"批量上传配置"`
+	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`
+	Options     map[string]any         `json:"options,omitempty" description:"驱动独立参数"`
+	Credentials *tls.ClientCredentials `json:"credentials,omitempty" description:"ssl链接配置"`
+}
+
+type OTELConf struct {
+	Disabled bool          `json:"disabled" description:"禁用追踪"`
+	Jaeger   *TracerConfig `json:"tracer" description:"Tracer配置"`
+	Metric   *MetricConfig `json:"metric" description:"Metric配置"`
+}
 
 type FakeExporter struct {
 }
@@ -18,74 +56,4 @@ func (e *FakeExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySp
 
 func (e *FakeExporter) Shutdown(ctx context.Context) error {
 	return nil
-}
-
-type LocalLOGExporter struct {
-}
-
-// ExportSpans 实现 trace.SpanExporter 接口
-func (e *LocalLOGExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
-	for _, span := range spans {
-		log.Infof("**Exporting Span: %s (TraceID: %s, SpanID: %s)",
-			span.Name(),
-			span.SpanContext().TraceID(),
-			span.SpanContext().SpanID(),
-		)
-
-		log.Infof("**  Metadata: %d %s", span.Status().Code, span.Status().Description)
-		// 打印 Span 的其他属性
-		for _, attr := range span.Attributes() {
-			log.Infof("**    Attribute: %s = %v", attr.Key, attr.Value.AsInterface())
-		}
-		var errors []attribute.KeyValue
-		// 打印 Span 事件
-		for _, event := range span.Events() {
-			log.Infof("**  Event: %s", event.Name)
-			for _, attr := range event.Attributes {
-				if attr.Key == "exception.message" || attr.Key == "exception.stacktrace" || event.Name == "http.error" {
-					errors = append(errors, attr)
-					continue
-				}
-				log.Infof("**      Event Attribute: %s = %s", attr.Key, attr.Value.AsString())
-			}
-		}
-
-		for _, attr := range errors {
-			if attr.Key == "exception.stacktrace" {
-				log.Errorf("**    Stacktrace: %s", strings.TrimSpace(attr.Value.AsString()))
-			} else if attr.Key == "exception.message" {
-				log.Errorf("**  Errors: %s", strings.TrimSpace(attr.Value.AsString()))
-			} else {
-				log.Errorf("**  Errors key: %s | value: %s", attr.Key, strings.TrimSpace(attr.Value.AsString()))
-			}
-		}
-	}
-	return nil
-}
-
-// Shutdown 实现 trace.SpanExporter 接口
-func (e *LocalLOGExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-func NewLogExporter() *LocalLOGExporter {
-	return &LocalLOGExporter{}
-}
-
-func NewLocalProvider(res *resource.Resource, fake ...bool) (*trace.TracerProvider, error) {
-	var exporter trace.SpanExporter
-
-	if len(fake) > 0 && fake[0] {
-		exporter = &FakeExporter{}
-	} else {
-		exporter = NewLogExporter()
-	}
-	provider := trace.NewTracerProvider(
-		trace.WithBatcher(exporter,
-			trace.WithBatchTimeout(0),
-			trace.WithMaxExportBatchSize(0),
-		),
-		trace.WithResource(res),
-	)
-	return provider, nil
 }

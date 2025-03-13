@@ -23,7 +23,7 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 	var span oteltrace.Span
 	tracer := tracing.GetTracer(CallScope)
 	ctx, span = tracer.Start(ctx, "node.selector",
-		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+		oteltrace.WithSpanKind(oteltrace.SpanKindInternal),
 		oteltrace.WithAttributes(
 			attribute.String("name", r.opts.Selector.Name()),
 			attribute.String("endpoint", request.Endpoint()),
@@ -32,7 +32,10 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 		),
 	)
 	if opts.Node != "" {
-		span.AddEvent("selector", oteltrace.WithAttributes(attribute.String("node", opts.Node)))
+		sid, _ := utils.FromBase62(opts.Node)
+		span.AddEvent("selector", oteltrace.WithAttributes(
+			attribute.String("node", opts.Node), attribute.Int("sid", sid),
+		))
 	}
 
 	defer span.End()
@@ -42,9 +45,8 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 		func(services []*micro.Service) ([]*micro.Service, error) {
 			var matched []*micro.Service
 			span.AddEvent("selector", oteltrace.WithAttributes(attribute.Int("services", len(services))))
-			defer func() {
-				span.AddEvent("selector", oteltrace.WithAttributes(attribute.Int("matched", len(matched))))
-			}()
+
+			defer span.AddEvent("selector", oteltrace.WithAttributes(attribute.Int("matched", len(matched))))
 
 			for _, s := range services {
 				// 主版本不匹配

@@ -54,9 +54,6 @@ func (r *rpcClient) publish(ctx context.Context, request micro.Request, opts ...
 	// set the body
 	msg.Body = b
 
-	parent := tracing.ExtractSpan(ctx)
-	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
-
 	var span oteltrace.Span
 	tracer := tracing.GetTracer(PushScope)
 	ctx, span = tracer.Start(ctx, topic,

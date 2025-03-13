@@ -9,6 +9,7 @@ import (
 
 const (
 	DefaultDialTimeout = time.Second * 3
+	DefaultRPCTimeout  = time.Second * 30
 )
 
 // Transport is an interface which is used for communication between

@@ -44,9 +44,6 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 		opt(&callOpts)
 	}
 
-	parent := tracing.ExtractSpan(ctx)
-	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
-
 	next, err := r.next(ctx, request, callOpts)
 	if err != nil {
 		return nil, err
@@ -62,7 +59,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 	d, ok := ctx.Deadline()
 	if !ok {
 		ctx, span = tracer.Start(ctx, name,
-			oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+			oteltrace.WithSpanKind(oteltrace.SpanKindInternal),
 			oteltrace.WithAttributes(
 				attribute.String("rpc.transport", r.Name()),
 			),
@@ -77,7 +74,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
 		ctx, span = tracer.Start(ctx, name,
-			oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+			oteltrace.WithSpanKind(oteltrace.SpanKindInternal),
 			oteltrace.WithAttributes(
 				attribute.String("call.node", callOpts.Node),
 			),
@@ -189,9 +186,6 @@ func (r *rpcClient) Stream(ctx context.Context, request micro.Request, opts ...C
 	for _, opt := range opts {
 		opt(&callOpts)
 	}
-
-	parent := tracing.ExtractSpan(ctx)
-	ctx = oteltrace.ContextWithRemoteSpanContext(ctx, parent)
 
 	var span oteltrace.Span
 	tracer := tracing.GetTracer(StreamScope)

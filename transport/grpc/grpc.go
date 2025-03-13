@@ -6,11 +6,13 @@ import (
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
+	"net"
 	"time"
 )
 
 type grpcTransport struct {
+	credentials credentials.TransportCredentials
 }
 
 func (t *grpcTransport) Dial(addr string, timeout time.Duration, stream bool) (transport.Client, error) {
@@ -19,12 +21,18 @@ func (t *grpcTransport) Dial(addr string, timeout time.Duration, stream bool) (t
 	}
 
 	options := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		grpc.WithTransportCredentials(t.credentials),       // 证书设置
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // OpenTelemetry数据传递
+		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) { // 设置链接超时
+			return net.DialTimeout("tcp", addr, timeout)
+		}),
 		grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any,
-			cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-			ctx, cancel := context.WithTimeout(ctx, timeout)
-			defer cancel()
+			cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error { // 设置默认rpc超时
+			if _, ok := ctx.Deadline(); !ok {
+				timeoutCtx, cancel := context.WithTimeout(ctx, transport.DefaultRPCTimeout)
+				defer cancel()
+				return invoker(timeoutCtx, method, req, reply, cc, opts...)
+			}
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}),
 	}
@@ -59,6 +67,6 @@ func (t *grpcTransport) String() string {
 	return "grpc"
 }
 
-func NewTransport() transport.Transport {
-	return &grpcTransport{}
+func NewTransport(c credentials.TransportCredentials) transport.Transport {
+	return &grpcTransport{credentials: c}
 }

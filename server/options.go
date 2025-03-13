@@ -6,6 +6,8 @@ import (
 	"github.com/lolizeppelin/micro/broker"
 	"github.com/lolizeppelin/micro/registry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"sync"
 	"time"
@@ -28,6 +30,8 @@ type Options struct {
 	RegisterCheck func(context.Context) error
 	WaitGroup     *sync.WaitGroup
 	Metadata      map[string]string
+
+	Credentials credentials.TransportCredentials
 }
 
 type Option func(*Options)
@@ -142,6 +146,13 @@ func WithMetadata(md map[string]string) Option {
 	}
 }
 
+// WithCredentials 设置证书
+func WithCredentials(credentials credentials.TransportCredentials) Option {
+	return func(o *Options) {
+		o.Credentials = credentials
+	}
+}
+
 func WithBrokerOpts(options []broker.SubscribeOption) Option {
 	return func(o *Options) {
 		o.BrokerOpts = options
@@ -155,6 +166,7 @@ func NewOptions(name string) Options {
 		MaxMsgSize:    DefaultMaxMsgSize,
 		Interval:      time.Second * 30,
 		RegisterCheck: registry.DefaultRegisterCheck,
+		Credentials:   insecure.NewCredentials(),
 	}
 
 }

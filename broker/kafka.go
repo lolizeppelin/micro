@@ -50,16 +50,3 @@ func NewKafkaProducer(address []string, autoAck ...bool) (*kgo.Client, error) {
 	log.Info("connect kafka success")
 	return client, nil
 }
-
-var (
-	_ctxKey     = struct{}{}
-	_ctxPartKey = struct{}{}
-)
-
-func WithKafkaKey(ctx context.Context, key string) context.Context {
-	return context.WithValue(ctx, _ctxKey, key)
-}
-
-func WithKafkaPartition(ctx context.Context, partition int32) context.Context {
-	return context.WithValue(ctx, _ctxPartKey, partition)
-}

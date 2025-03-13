@@ -1,16 +1,11 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"syscall"
 )
-
-var LOG *logrus.Entry
 
 func Setup(program string, logDir string, level logrus.Level) error {
 	if LOG != nil {
@@ -38,27 +33,8 @@ func Setup(program string, logDir string, level logrus.Level) error {
 	return nil
 }
 
-func Mount(logDir string, name string, level logrus.Level) (*Logger, error) {
-	var l *Logger
-	var err error
-	if len(logDir) < 1 { // use stderr
-		l, err = newLogger("")
-	} else {
-		var info fs.FileInfo
-		info, err = os.Lstat(logDir)
-		if err != nil {
-			return nil, err
-		}
-		if !info.IsDir() {
-			return nil, errors.New("logging path is not exist or not a directory")
-		}
-		l, err = newLogger(filepath.Join(logDir, name))
-	}
-	if err != nil {
-		return nil, err
-	}
-	l.SetLevel(level)
-	return l, nil
+func SetMetric(m LoggingMetric) {
+	metric = m
 }
 
 func Info(args ...interface{}) {
@@ -66,14 +42,17 @@ func Info(args ...interface{}) {
 }
 
 func Warn(args ...interface{}) {
+	metric.Warn()
 	LOG.Warn(args...)
 }
 
 func Warning(args ...interface{}) {
+	metric.Warn()
 	LOG.Warn(args...)
 }
 
 func Error(args ...interface{}) {
+	metric.Error()
 	LOG.Error(args...)
 }
 
@@ -94,14 +73,17 @@ func Infof(format string, args ...interface{}) {
 }
 
 func Warnf(format string, args ...interface{}) {
+	metric.Warn()
 	LOG.Warnf(format, args...)
 }
 
 func Warningf(format string, args ...interface{}) {
+	metric.Warn()
 	LOG.Warnf(format, args...)
 }
 
 func Errorf(format string, args ...interface{}) {
+	metric.Error()
 	LOG.Errorf(format, args...)
 }
 

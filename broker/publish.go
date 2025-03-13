@@ -19,8 +19,7 @@ func (k *KafkaBroker) Publish(ctx context.Context, topic string, msg *transport.
 	}
 
 	headers := make([]kgo.RecordHeader, 0)
-	carrier := make(map[string]string)
-	tracing.Inject(ctx, carrier)
+	carrier := tracing.Inject(ctx)
 
 	for key, value := range carrier {
 		headers = append(headers, kgo.RecordHeader{
@@ -34,12 +33,12 @@ func (k *KafkaBroker) Publish(ctx context.Context, topic string, msg *transport.
 		Value:   buff,
 		Headers: headers,
 	}
-	if key := ctx.Value(_ctxKey); key != nil {
-		record.Key = []byte(key.(string))
-	}
-	if key := ctx.Value(_ctxPartKey); key != nil {
-		record.Partition = key.(int32)
-	}
+	//if key := ctx.Value(_ctxKey); key != nil {
+	//	record.Key = []byte(key.(string))
+	//}
+	//if key := ctx.Value(_ctxPartKey); key != nil {
+	//	record.Partition = key.(int32)
+	//}
 
 	k.producer.TryProduce(ctx, record, func(record *kgo.Record, err error) {
 		k.opts.ErrorHandler("push", record, err)
