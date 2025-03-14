@@ -23,16 +23,16 @@ func GetPropagator() propagation.TextMapPropagator {
 	return otel.GetTextMapPropagator()
 }
 
-// Extract  from carrier into context  提取
-func Extract(carrier map[string]string) context.Context {
+// Extract  通过字典中的OpenTelemetry数据,生成ctx(kafka接收时用,grpc已封装不需要主动Extract)
+func Extract(ctx context.Context, carrier map[string]string) context.Context {
 	propagator := GetPropagator()
 	c := propagation.MapCarrier(carrier)
-	ctx := propagator.Extract(context.Background(), c)
+	ctx = propagator.Extract(ctx, c)
 	return oteltrace.ContextWithRemoteSpanContext(context.Background(), oteltrace.SpanContextFromContext(ctx))
 }
 
-// Inject  from ctx into carrier 注入
-func Inject(ctx context.Context) map[string]string {
+// Inject  OpenTelemetry数据注入字典中(kafka发送时用,grpc已封装不需要主动Inject)
+func Inject(ctx context.Context) propagation.MapCarrier {
 	propagator := GetPropagator()
 	c := propagation.MapCarrier{}
 	propagator.Inject(ctx, c)

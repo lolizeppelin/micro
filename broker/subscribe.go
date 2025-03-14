@@ -119,6 +119,6 @@ func Decode(record *kgo.Record, unmarshal ...SubscribeUnmarshal) (ctx context.Co
 	for _, header := range record.Headers {
 		headers[header.Key] = string(header.Value)
 	}
-	ctx = tracing.Extract(headers)
+	ctx = tracing.Extract(context.Background(), headers)
 	return
 }

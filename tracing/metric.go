@@ -29,6 +29,13 @@ func GetCounter(scope, name string) otelmetric.Int64Counter {
 }
 
 /*
+GetUpDownCounter 可以减少的计数器
+*/
+func GetUpDownCounter(scope, name string) otelmetric.Int64UpDownCounter {
+	return GetIntUpDownCounter(scope, name, "", "")
+}
+
+/*
 GetIntCounter 单调递增计数器，比如可以用来记录订单数、总的请求数。
 */
 func GetIntCounter(scope, name, unit, desc string) otelmetric.Int64Counter {
@@ -51,9 +58,9 @@ func GetFloatCounter(scope, name, unit, desc string) otelmetric.Float64Counter {
 }
 
 /*
-GetUpDownCounter 可以减少的计数器
+GetIntUpDownCounter 可以减少的计数器
 */
-func GetUpDownCounter(scope, name, unit, desc string) otelmetric.Int64UpDownCounter {
+func GetIntUpDownCounter(scope, name, unit, desc string) otelmetric.Int64UpDownCounter {
 	counter, _ := GetMeter(scope).Int64UpDownCounter(
 		name,
 		otelmetric.WithUnit(unit),

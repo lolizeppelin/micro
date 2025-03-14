@@ -1,17 +1,14 @@
-package tracing
+package tracers
 
-import "C"
 import (
 	"context"
-	"github.com/lolizeppelin/micro/tracing/metrics"
 	"github.com/lolizeppelin/micro/utils/tls"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
 
-type OTELProvider interface {
-	ForceFlush(ctx context.Context) error
-	Shutdown(ctx context.Context) error
-}
+var (
+	exports = map[string]ExportTracer{}
+)
 
 type TracerBatch struct {
 	Timeout int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
@@ -28,19 +25,8 @@ type TracerConfig struct {
 	Credentials *tls.ClientCredentials `json:"credentials,omitempty" description:"ssl链接配置"`
 }
 
-type OTELConf struct {
-	Disabled bool                  `json:"disabled" description:"禁用追踪"`
-	Tracer   *TracerConfig         `json:"tracer" description:"Tracer配置"`
-	Metric   *metrics.MetricConfig `json:"metric" description:"Metric配置"`
-}
+type ExportTracer func(context.Context, TracerConfig) (trace.SpanExporter, error)
 
-type FakeExporter struct {
-}
-
-func (e *FakeExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
-	return nil
-}
-
-func (e *FakeExporter) Shutdown(ctx context.Context) error {
+func LoadExport(driver string) ExportTracer {
 	return nil
 }
