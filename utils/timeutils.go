@@ -15,6 +15,10 @@ func Monotonic() time.Duration { // 单调递增时间
 	return time.Now().Sub(_start)
 }
 
+func Now() time.Time {
+	return time.Now()
+}
+
 func NowUnix() int64 {
 	return time.Now().Unix()
 }

@@ -2,59 +2,117 @@ package tracing
 
 import (
 	"context"
-	"github.com/lolizeppelin/micro/log"
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/trace"
-	"strings"
+	otellog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/metric"
+	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
-type LocalLOGExporter struct {
+var MetricLevels = []logrus.Level{
+	logrus.WarnLevel,
+	logrus.ErrorLevel,
 }
 
-// ExportSpans 实现 trace.SpanExporter 接口
-func (e *LocalLOGExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
-	for _, span := range spans {
-		log.Infof("**Exporting Span: %s (TraceID: %s, SpanID: %s)",
-			span.Name(),
-			span.SpanContext().TraceID(),
-			span.SpanContext().SpanID(),
-		)
-		log.Infof("**  Metadata: %d %s", span.Status().Code, span.Status().Description)
-		// 打印 Span 的其他属性
-		for _, attr := range span.Attributes() {
-			log.Infof("**    Attribute: %s = %v", attr.Key, attr.Value.AsInterface())
-		}
-		var errors []attribute.KeyValue
-		// 打印 Span 事件
-		for _, event := range span.Events() {
-			log.Infof("**  Event: %s", event.Name)
-			for _, attr := range event.Attributes {
-				if attr.Key == "exception.message" || attr.Key == "exception.stacktrace" || event.Name == "http.error" {
-					errors = append(errors, attr)
-					continue
-				}
-				log.Infof("**      Event Attribute: %s = %s", attr.Key, attr.Value.AsString())
-			}
-		}
+type LogrusMetricHook struct {
+	errors   metric.Int64Counter
+	warnings metric.Int64Counter
+	options  otelmetric.MeasurementOption
+}
 
-		for _, attr := range errors {
-			if attr.Key == "exception.stacktrace" {
-				log.Errorf("**    Stacktrace: %s", strings.TrimSpace(attr.Value.AsString()))
-			} else if attr.Key == "exception.message" {
-				log.Errorf("**  Errors: %s", strings.TrimSpace(attr.Value.AsString()))
-			} else {
-				log.Errorf("**  Errors key: %s | value: %s", attr.Key, strings.TrimSpace(attr.Value.AsString()))
-			}
-		}
+func (h *LogrusMetricHook) Levels() []logrus.Level {
+	return MetricLevels
+}
+
+func (h *LogrusMetricHook) Fire(entry *logrus.Entry) error {
+	if entry.Level == logrus.WarnLevel {
+		h.warnings.Add(context.Background(), 1, h.options)
+	} else {
+		h.errors.Add(context.Background(), 1, h.options)
 	}
 	return nil
+
 }
 
-// Shutdown 实现 trace.SpanExporter 接口
-func (e *LocalLOGExporter) Shutdown(ctx context.Context) error {
+type LogrusHook struct {
+	Debug      bool
+	attributes []otellog.KeyValue
+	options    otelmetric.MeasurementOption
+
+	errors   metric.Int64Counter
+	warnings metric.Int64Counter
+
+	logger otellog.Logger
+}
+
+func (h *LogrusHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *LogrusHook) Fire(entry *logrus.Entry) error {
+	var level otellog.Severity
+
+	var event string
+	ctx := entry.Context
+	if ctx == nil {
+		event = "log"
+		ctx = context.Background()
+	} else {
+		event = "otel"
+	}
+	switch entry.Level {
+	case logrus.FatalLevel:
+		event = "fatal"
+		level = otellog.SeverityError
+		break
+	case logrus.WarnLevel:
+		h.warnings.Add(ctx, 1, h.options)
+		level = otellog.SeverityWarn
+		break
+	case logrus.ErrorLevel:
+		h.errors.Add(ctx, 1, h.options)
+		level = otellog.SeverityError
+		break
+	case logrus.DebugLevel:
+		level = otellog.SeverityDebug
+		break
+	case logrus.InfoLevel:
+		level = otellog.SeverityInfo
+		break
+	case logrus.TraceLevel:
+		level = otellog.SeverityTrace
+		break
+	}
+
+	record := otellog.Record{}
+	record.SetEventName(event)
+	record.SetSeverity(level)
+	record.SetTimestamp(entry.Time)
+	record.SetBody(otellog.StringValue(entry.Message))
+	record.AddAttributes(h.attributes...)
+	h.logger.Emit(entry.Context, record)
 	return nil
 }
 
-func NewLogExporter() *LocalLOGExporter {
-	return &LocalLOGExporter{}
+func NewLogrusHook(attributes []attribute.KeyValue, attrs []otellog.KeyValue, logger ...otellog.Logger) logrus.Hook {
+	meter := GetMeter(ScopeName, _version)
+	ec, _ := meter.Int64Counter("log.err")
+	wc, _ := meter.Int64Counter("log.warn")
+
+	if len(logger) > 0 {
+		return &LogrusHook{
+			logger:     logger[0],
+			errors:     ec,
+			warnings:   wc,
+			attributes: attrs,
+			options:    otelmetric.WithAttributes(attributes...),
+		}
+	}
+
+	return &LogrusMetricHook{
+		errors:   ec,
+		warnings: wc,
+		options:  otelmetric.WithAttributes(attributes...),
+	}
+
 }

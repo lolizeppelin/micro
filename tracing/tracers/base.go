@@ -10,6 +10,12 @@ var (
 	exports = map[string]ExportTracer{}
 )
 
+func init() {
+	exports["collector"] = NewGRPCExport
+	exports["collector.grpc"] = NewGRPCExport
+	exports["collector.http"] = NewHTTPExport
+}
+
 type TracerBatch struct {
 	Timeout int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
 	Size    int   `json:"size,omitempty"`
@@ -28,5 +34,5 @@ type TracerConfig struct {
 type ExportTracer func(context.Context, TracerConfig) (trace.SpanExporter, error)
 
 func LoadExport(driver string) ExportTracer {
-	return nil
+	return exports[driver]
 }

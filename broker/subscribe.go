@@ -16,7 +16,9 @@ func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...Subscribe
 	if err != nil {
 		return nil, err
 	}
+
 	subscriber := &KafkaSubscriber{
+		tracer:    tracing.GetTracer(HandlerScope, _version),
 		topic:     topic,
 		client:    client,
 		handler:   handler,
@@ -30,6 +32,7 @@ func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...Subscribe
 
 type KafkaSubscriber struct {
 	topic     string
+	tracer    oteltrace.Tracer
 	client    *kgo.Client
 	handler   Handler
 	stop      chan struct{}
@@ -88,8 +91,7 @@ func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 		}
 
 		var span oteltrace.Span
-		tracer := tracing.GetTracer(HandlerScope)
-		ctx, span = tracer.Start(ctx, "kafka.consume",
+		ctx, span = s.tracer.Start(ctx, "kafka.consume",
 			oteltrace.WithAttributes(
 				attribute.String("endpoint", msg.Header[transport.Endpoint]),
 			),

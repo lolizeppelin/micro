@@ -2,11 +2,16 @@ package broker
 
 import (
 	"context"
+	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/transport"
 )
 
 const (
 	HandlerScope = "micro/broker/handler"
+)
+
+var (
+	_version, _ = micro.NewVersion("1.0.0")
 )
 
 // Broker is an interface used for asynchronous messaging.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 func CopyFile(src, dst string) (err error) {
@@ -139,4 +140,51 @@ func LoadBuff(path string) ([]byte, error) {
 	}
 	defer file.Close()
 	return io.ReadAll(file)
+}
+
+func LoadGeneralJsonFiles(targets []string, skip bool, loop int) (map[string]any, error) {
+	remaining := loop
+	if remaining <= 0 {
+		remaining = 10
+	}
+
+	suffix := ".json"
+
+	cfg := map[string]any{}
+	for _, path := range targets {
+		remaining--
+		if remaining < 0 {
+			return nil, fmt.Errorf("load json files over range")
+		}
+		info, err := PathFileInfo(path)
+		if err != nil {
+			return nil, err
+		}
+		if info == nil {
+			if !skip {
+				return nil, fmt.Errorf("path %s not exists", path)
+			}
+			continue
+		}
+		var files []string
+		if info.IsDir() {
+			files, err = GetAllFiles(path, suffix, remaining)
+			if err != nil {
+				return nil, err
+			}
+			remaining -= len(files)
+		} else if info.Mode().IsRegular() && strings.HasSuffix(strings.ToLower(info.Name()), suffix) {
+			files = append(files, path)
+		}
+		for _, file := range files {
+			tmp := map[string]any{}
+			if err = LoadJson(file, &tmp); err != nil {
+				return nil, err
+			}
+			for k, v := range tmp {
+				cfg[k] = v
+			}
+		}
+	}
+	return cfg, nil
 }

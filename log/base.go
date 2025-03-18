@@ -1,11 +1,8 @@
 package log
 
 import (
-	"errors"
 	"github.com/sirupsen/logrus"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -15,7 +12,7 @@ var (
 	loggers []*Logger
 )
 
-func newLogger(path string) (*Logger, error) {
+func newLogger(name, path string) (*Logger, error) {
 
 	var file *os.File
 	if len(path) > 0 {
@@ -36,13 +33,14 @@ func newLogger(path string) (*Logger, error) {
 		ReportCaller: false,
 	}
 
-	logger := &Logger{logger: l, file: file}
+	logger := &Logger{logger: l, file: file, name: name}
 	loggers = append(loggers, logger)
 	return logger, nil
 
 }
 
 type Logger struct {
+	name   string
 	logger *logrus.Logger
 	file   *os.File
 	lock   sync.Mutex
@@ -135,28 +133,4 @@ func LogLevel(level string) logrus.Level {
 		return logrus.DebugLevel
 	}
 	return logrus.InfoLevel
-
-}
-
-func Mount(logDir string, name string, level logrus.Level) (*Logger, error) {
-	var l *Logger
-	var err error
-	if len(logDir) < 1 { // use stderr
-		l, err = newLogger("")
-	} else {
-		var info fs.FileInfo
-		info, err = os.Lstat(logDir)
-		if err != nil {
-			return nil, err
-		}
-		if !info.IsDir() {
-			return nil, errors.New("logging path is not exist or not a directory")
-		}
-		l, err = newLogger(filepath.Join(logDir, name))
-	}
-	if err != nil {
-		return nil, err
-	}
-	l.SetLevel(level)
-	return l, nil
 }

@@ -196,6 +196,10 @@ func (g *RPCServer) Stop() error {
 
 func NewServer(opts *Options) (*RPCServer, error) {
 
+	if opts.Version == nil {
+		return nil, fmt.Errorf("version required")
+	}
+
 	if len(opts.Components) == 0 {
 		opts.Components = micro.LoadComponents()
 	}
@@ -214,11 +218,6 @@ func NewServer(opts *Options) (*RPCServer, error) {
 
 	if opts.WaitGroup == nil {
 		opts.WaitGroup = new(sync.WaitGroup)
-	}
-
-	if opts.Version == nil {
-		version, _ := micro.NewVersion("1.0")
-		opts.Version = version
 	}
 
 	if opts.Metadata == nil {

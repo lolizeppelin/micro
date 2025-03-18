@@ -1,11 +1,20 @@
 package tracing
 
-import "C"
 import (
 	"context"
+	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/tracing/logs"
 	"github.com/lolizeppelin/micro/tracing/metrics"
-	"github.com/lolizeppelin/micro/utils/tls"
+	"github.com/lolizeppelin/micro/tracing/tracers"
 	"go.opentelemetry.io/otel/sdk/trace"
+)
+
+const (
+	ScopeName = "micro/tracing"
+)
+
+var (
+	_version, _ = micro.NewVersion("1.0.0")
 )
 
 type OTELProvider interface {
@@ -13,25 +22,11 @@ type OTELProvider interface {
 	Shutdown(ctx context.Context) error
 }
 
-type TracerBatch struct {
-	Timeout int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
-	Size    int   `json:"size,omitempty"`
-	Queue   int   `json:"queue,omitempty"`
-}
-
-type TracerConfig struct {
-	Driver      string                 `json:"driver" description:"Tracer驱动"` // e.g jaeger
-	Endpoint    string                 `json:"endpoints" description:"接口地址"`
-	Batch       TracerBatch            `json:"batch" description:"批量上传配置"`
-	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`
-	Options     map[string]any         `json:"options,omitempty" description:"驱动独立参数参数"`
-	Credentials *tls.ClientCredentials `json:"credentials,omitempty" description:"ssl链接配置"`
-}
-
 type OTELConf struct {
 	Disabled bool                  `json:"disabled" description:"禁用追踪"`
-	Tracer   *TracerConfig         `json:"tracer" description:"Tracer配置"`
+	Tracer   *tracers.TracerConfig `json:"tracer" description:"Tracer配置"`
 	Metric   *metrics.MetricConfig `json:"metric" description:"Metric配置"`
+	Logging  *logs.LoggingConfig   `json:"logging" description:"Logging配置"`
 }
 
 type FakeExporter struct {

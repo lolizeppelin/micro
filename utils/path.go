@@ -2,7 +2,9 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
@@ -147,4 +149,21 @@ func ReadFile(path string) ([]byte, error) {
 
 func IsSafePathName(name string) bool {
 	return true
+}
+
+func GetAllFiles(root, suffix string, total int) ([]string, error) {
+	var files []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if len(files) > total {
+			return fmt.Errorf("list dir over range")
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), suffix) {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
 }

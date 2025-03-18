@@ -16,7 +16,7 @@ func NewHTTPExport(ctx context.Context, conf MetricConfig) (metric.Exporter, err
 		return nil, err
 	}
 
-	address := conf.Endpoints
+	address := conf.Endpoint
 	return otlpmetrichttp.New(ctx,
 		otlpmetrichttp.WithEndpointURL(address),
 		otlpmetrichttp.WithTLSClientConfig(tls),

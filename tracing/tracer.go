@@ -2,22 +2,14 @@ package tracing
 
 import (
 	"context"
+	"github.com/lolizeppelin/micro/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"strings"
 )
-
-var (
-	t_ver = oteltrace.WithInstrumentationVersion("1.0.0")
-)
-
-func GetTracer(name string) oteltrace.Tracer {
-	provider := otel.GetTracerProvider()
-	return provider.Tracer(name, t_ver)
-}
 
 func GetPropagator() propagation.TextMapPropagator {
 	return otel.GetTextMapPropagator()
@@ -39,34 +31,53 @@ func Inject(ctx context.Context) propagation.MapCarrier {
 	return c
 }
 
-func StartTrace(ctx context.Context, scope, name string,
-	attributes ...attribute.KeyValue) (context.Context, oteltrace.Span) {
-	tracer := GetTracer(scope)
-	return tracer.Start(ctx, name,
-		oteltrace.WithAttributes(attributes...),
-	)
+type TracerLog struct {
 }
 
-func FakeTraceProvider(res *resource.Resource) *trace.TracerProvider {
-	exporter := &FakeExporter{}
-	provider := trace.NewTracerProvider(
-		trace.WithBatcher(exporter,
-			trace.WithBatchTimeout(0),
-			trace.WithMaxExportBatchSize(0),
-		),
-		trace.WithResource(res),
-	)
-	return provider
+// ExportSpans 实现 trace.SpanExporter 接口
+func (e *TracerLog) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
+	for _, span := range spans {
+		log.Infof("**Exporting Span: %s (TraceID: %s, SpanID: %s)",
+			span.Name(),
+			span.SpanContext().TraceID(),
+			span.SpanContext().SpanID(),
+		)
+		log.Infof("**  Metadata: %d %s", span.Status().Code, span.Status().Description)
+		// 打印 Span 的其他属性
+		for _, attr := range span.Attributes() {
+			log.Infof("**    Attribute: %s = %v", attr.Key, attr.Value.AsInterface())
+		}
+		var errors []attribute.KeyValue
+		// 打印 Span 事件
+		for _, event := range span.Events() {
+			log.Infof("**  Event: %s", event.Name)
+			for _, attr := range event.Attributes {
+				if attr.Key == "exception.message" || attr.Key == "exception.stacktrace" || event.Name == "http.error" {
+					errors = append(errors, attr)
+					continue
+				}
+				log.Infof("**      Event Attribute: %s = %s", attr.Key, attr.Value.AsString())
+			}
+		}
+
+		for _, attr := range errors {
+			if attr.Key == "exception.stacktrace" {
+				log.Errorf("**    Stacktrace: %s", strings.TrimSpace(attr.Value.AsString()))
+			} else if attr.Key == "exception.message" {
+				log.Errorf("**  Errors: %s", strings.TrimSpace(attr.Value.AsString()))
+			} else {
+				log.Errorf("**  Errors key: %s | value: %s", attr.Key, strings.TrimSpace(attr.Value.AsString()))
+			}
+		}
+	}
+	return nil
 }
 
-func LogTraceProvider(res *resource.Resource) *trace.TracerProvider {
-	exporter := NewLogExporter()
-	provider := trace.NewTracerProvider(
-		trace.WithBatcher(exporter,
-			trace.WithBatchTimeout(0),
-			trace.WithMaxExportBatchSize(0),
-		),
-		trace.WithResource(res),
-	)
-	return provider
+// Shutdown 实现 trace.SpanExporter 接口
+func (e *TracerLog) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+func NewLogExporter() *TracerLog {
+	return &TracerLog{}
 }

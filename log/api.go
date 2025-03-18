@@ -1,9 +1,12 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -11,7 +14,7 @@ func Setup(program string, logDir string, level logrus.Level) error {
 	if LOG != nil {
 		panic("log already setup")
 	}
-	l, err := Mount(logDir, fmt.Sprintf("%s.log", program), level)
+	l, err := Mount(logDir, program, level)
 	if err != nil {
 		return err
 	}
@@ -33,8 +36,27 @@ func Setup(program string, logDir string, level logrus.Level) error {
 	return nil
 }
 
-func SetMetric(m LoggingMetric) {
-	metric = m
+func Mount(logDir string, name string, level logrus.Level) (*Logger, error) {
+	var l *Logger
+	var err error
+	if len(logDir) < 1 { // use stderr
+		l, err = newLogger(name, "")
+	} else {
+		var info fs.FileInfo
+		info, err = os.Lstat(logDir)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("logging path %s is not exist or not a directory", logDir)
+		}
+		l, err = newLogger(name, filepath.Join(logDir, fmt.Sprintf("%s.log", name)))
+	}
+	if err != nil {
+		return nil, err
+	}
+	l.SetLevel(level)
+	return l, nil
 }
 
 func Info(args ...interface{}) {
@@ -42,17 +64,14 @@ func Info(args ...interface{}) {
 }
 
 func Warn(args ...interface{}) {
-	metric.Warn()
 	LOG.Warn(args...)
 }
 
 func Warning(args ...interface{}) {
-	metric.Warn()
 	LOG.Warn(args...)
 }
 
 func Error(args ...interface{}) {
-	metric.Error()
 	LOG.Error(args...)
 }
 
@@ -73,17 +92,14 @@ func Infof(format string, args ...interface{}) {
 }
 
 func Warnf(format string, args ...interface{}) {
-	metric.Warn()
 	LOG.Warnf(format, args...)
 }
 
 func Warningf(format string, args ...interface{}) {
-	metric.Warn()
 	LOG.Warnf(format, args...)
 }
 
 func Errorf(format string, args ...interface{}) {
-	metric.Error()
 	LOG.Errorf(format, args...)
 }
 
@@ -99,6 +115,16 @@ func Fatalf(format string, args ...interface{}) {
 	LOG.Fatalf(format, args...)
 }
 
+func WithContext(ctx context.Context) *logrus.Entry {
+	return LOG.WithContext(ctx)
+}
+
 func IsDebugEnabled() bool {
 	return LOG.Logger.IsLevelEnabled(logrus.DebugLevel)
+}
+
+func AddHook(hook logrus.Hook) {
+	for _, l := range loggers {
+		l.AddHook(hook)
+	}
 }

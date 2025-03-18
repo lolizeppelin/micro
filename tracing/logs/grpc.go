@@ -1,9 +1,9 @@
-package metrics
+package logs
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/sdk/log"
 	"google.golang.org/grpc"
 	"net"
 	"time"
@@ -12,7 +12,7 @@ import (
 /*
 NewGRPCExport 创建一个使用 GRPC 协议连接的Exporter
 */
-func NewGRPCExport(ctx context.Context, conf MetricConfig) (metric.Exporter, error) {
+func NewGRPCExport(ctx context.Context, conf LoggingConfig) (log.Exporter, error) {
 	endpoint := conf.Endpoint
 	creds, err := conf.Credentials.Credentials()
 	if err != nil {
@@ -29,15 +29,15 @@ func NewGRPCExport(ctx context.Context, conf MetricConfig) (metric.Exporter, err
 	if err != nil {
 		return nil, err
 	}
-	return otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpointURL(endpoint),
-		otlpmetricgrpc.WithCompressor("gzip"),
-		otlpmetricgrpc.WithHeaders(conf.Auth),
-		otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{ // 重试机制
+	return otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpointURL(endpoint),
+		otlploggrpc.WithCompressor("gzip"),
+		otlploggrpc.WithHeaders(conf.Auth),
+		otlploggrpc.WithRetry(otlploggrpc.RetryConfig{ // 重试机制
 			Enabled:         true,
 			InitialInterval: 1 * time.Second,
 			MaxInterval:     10 * time.Second,
 		}),
-		otlpmetricgrpc.WithGRPCConn(conn),
-		otlpmetricgrpc.WithTimeout(5*time.Second))
+		otlploggrpc.WithGRPCConn(conn),
+		otlploggrpc.WithTimeout(5*time.Second))
 }
