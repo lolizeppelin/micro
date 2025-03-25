@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/json"
 	"errors"
+	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/protobuf/proto"
 )
@@ -13,6 +14,7 @@ var (
 
 func init() {
 	encoding.RegisterCodec(jsonCodec{})
+	encoding.RegisterCodec(msgpackCodec{})
 	encoding.RegisterCodec(protoCodec{})
 	encoding.RegisterCodec(bytesCodec{})
 }
@@ -82,4 +84,22 @@ func (bytesCodec) Unmarshal(data []byte, v interface{}) error {
 func (bytesCodec) Name() string {
 	//return "bytes"
 	return "application/grpc+bytes"
+}
+
+type msgpackCodec struct{}
+
+func (msgpackCodec) Marshal(v interface{}) ([]byte, error) {
+
+	return msgpack.Marshal(v)
+}
+
+func (msgpackCodec) Unmarshal(data []byte, v interface{}) error {
+	if len(data) == 0 {
+		return nil
+	}
+	return msgpack.Unmarshal(data, v)
+}
+
+func (msgpackCodec) Name() string {
+	return "application/grpc+msgpack"
 }

@@ -6,13 +6,15 @@ import (
 
 var (
 	DefaultCodecs = map[string]string{
-		"text/html":              "application/grpc+bytes",
-		"text/plain":             "application/grpc+bytes",
-		"application/grpc+json":  "application/grpc+json",
-		"application/grpc+proto": "application/grpc+proto",
-		"application/grpc+bytes": "application/grpc+bytes",
+		"text/html":                "application/grpc+bytes",
+		"text/plain":               "application/grpc+bytes",
+		"application/grpc+json":    "application/grpc+json",
+		"application/grpc+proto":   "application/grpc+proto",
+		"application/grpc+bytes":   "application/grpc+bytes",
+		"application/grpc+msgpack": "application/grpc+msgpack",
 
 		"application/json":         "application/grpc+json",
+		"application/msgpack":      "application/grpc+msgpack",
 		"application/grpc":         "application/grpc+proto",
 		"application/protobuf":     "application/grpc+proto",
 		"application/octet-stream": "application/grpc+bytes",

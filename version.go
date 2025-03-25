@@ -1,7 +1,6 @@
 package micro
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro/utils"
@@ -54,14 +53,8 @@ func (v Version) Compare(version Version, patch ...bool) int {
 
 // MarshalJSON Implementing the json.Marshaler interface
 func (v Version) MarshalJSON() ([]byte, error) {
-	// Create a map to hold the JSON representation
-	m := map[string]int{
-		"major": v.Major,
-		"minor": v.Minor,
-		"patch": v.Patch,
-	}
 	// Use the standard library to marshal the map to JSON
-	return json.Marshal(m)
+	return []byte(fmt.Sprintf("{\"major\": %d, \"minor\": %d, \"patch\": %d}", v.Major, v.Minor, v.Patch)), nil
 }
 
 func NewVersion(v string) (*Version, error) {

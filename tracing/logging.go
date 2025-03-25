@@ -89,6 +89,11 @@ func (h *LogrusHook) Fire(entry *logrus.Entry) error {
 	record.SetSeverity(level)
 	record.SetTimestamp(entry.Time)
 	record.SetBody(otellog.StringValue(entry.Message))
+
+	//attrs := h.attributes
+	//for k, v := range entry.Data {
+	//	attrs = append(attrs, otellog.String(k, fmt.Sprintf("%v", v)))
+	//}
 	record.AddAttributes(h.attributes...)
 	h.logger.Emit(entry.Context, record)
 	return nil

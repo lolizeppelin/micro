@@ -55,6 +55,17 @@ func (e *EtcdConfig) Get(ctx context.Context, key string) (*mvccpb.KeyValue, err
 	return kv.Kvs[0], nil
 }
 
+func (e *EtcdConfig) GetAll(ctx context.Context, key string) ([]*mvccpb.KeyValue, error) {
+	kv, err := e.kv.Get(ctx, e.prefix+key)
+	if err != nil {
+		return nil, err
+	}
+	if kv.Count < 1 {
+		return nil, micro.ErrConfigFound
+	}
+	return kv.Kvs, nil
+}
+
 func (e *EtcdConfig) List(ctx context.Context, key string) ([]*mvccpb.KeyValue, error) {
 	kv, err := e.kv.Get(ctx, e.prefix+key, clientv3.WithPrefix())
 	if err != nil {

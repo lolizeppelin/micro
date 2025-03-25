@@ -50,7 +50,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 	}
 
 	var span oteltrace.Span
-	tracer := tracing.GetTracer(CallScope)
+	tracer := tracing.GetTracer(CallScope, _version)
 	name := fmt.Sprintf("%s.%s.%s", request.Method(), request.Service(), request.Endpoint())
 
 	defer span.End()
@@ -188,7 +188,7 @@ func (r *rpcClient) Stream(ctx context.Context, request micro.Request, opts ...C
 	}
 
 	var span oteltrace.Span
-	tracer := tracing.GetTracer(StreamScope)
+	tracer := tracing.GetTracer(StreamScope, _version)
 	name := fmt.Sprintf("%s.%s.%s", request.Method(), request.Service(), request.Endpoint())
 	ctx, span = tracer.Start(ctx, name,
 		oteltrace.WithSpanKind(oteltrace.SpanKindServer),

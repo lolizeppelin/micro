@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lolizeppelin/micro"
+	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/protobuf/proto"
 	"io"
 )
@@ -14,12 +15,13 @@ const (
 	maxInt         = int(^uint(0) >> 1)
 )
 
-// 用于传递载荷
-
+// Unmarshal 返回值反序列化
 func Unmarshal(protocol string, buff []byte, payload *micro.Response) error {
 	switch protocol {
 	case "application/grpc+bytes":
 		payload.Body = buff
+	case "application/msgpack", "application/grpc+msgpack":
+		return msgpack.Unmarshal(buff, payload.Body)
 	case "application/grpc+json", "application/json":
 		return json.Unmarshal(buff, payload.Body)
 	case "application/grpc+proto", "application/grpc":
@@ -32,12 +34,14 @@ func Unmarshal(protocol string, buff []byte, payload *micro.Response) error {
 	return fmt.Errorf("protocol '%s' not support for codec.Unmarshal", protocol)
 }
 
+// Marshal 发送值序列化
 func Marshal(protocol string, b interface{}) ([]byte, error) {
-	v, ok := b.([]byte)
-	if !ok {
+	if v, ok := b.([]byte); ok { // 已经序列化
 		return v, nil
 	}
 	switch protocol {
+	case "application/msgpack", "application/grpc+msgpack":
+		return msgpack.Marshal(b)
 	case "application/grpc+json", "application/json":
 		return json.Marshal(b)
 	case "application/grpc+proto", "application/grpc":

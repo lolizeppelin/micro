@@ -108,7 +108,7 @@ func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query ur
 	var err error
 	var span oteltrace.Span
 
-	tracer := tracing.GetTracer(HandlerScope)
+	tracer := tracing.GetTracer(HandlerScope, _version)
 	ctx, span = tracer.Start(ctx, "handler.reflect",
 		oteltrace.WithAttributes(
 			attribute.String("resource", handler.Resource),

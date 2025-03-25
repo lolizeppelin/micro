@@ -48,7 +48,7 @@ func (s *Service) dispatch(ctx context.Context, event broker.Event) (err error) 
 	}
 
 	var span oteltrace.Span
-	tracer := tracing.GetTracer(HandlerScope)
+	tracer := tracing.GetTracer(HandlerScope, _version)
 	ctx, span = tracer.Start(ctx, endpoint,
 		oteltrace.WithSpanKind(oteltrace.SpanKindConsumer),
 		oteltrace.WithAttributes(

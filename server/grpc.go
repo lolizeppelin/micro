@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -198,10 +197,6 @@ func NewServer(opts *Options) (*RPCServer, error) {
 
 	if opts.Version == nil {
 		return nil, fmt.Errorf("version required")
-	}
-
-	if len(opts.Components) == 0 {
-		opts.Components = micro.LoadComponents()
 	}
 
 	if len(opts.Components) == 0 {

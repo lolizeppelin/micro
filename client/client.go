@@ -17,6 +17,10 @@ const (
 	StreamScope = "micro/client/stream"
 )
 
+var (
+	_version, _ = micro.NewVersion("1.0.0")
+)
+
 // Client is the interface used to make requests to services.
 // It supports Request/Response via Transport and Publishing via the Broker.
 // It also supports bidirectional streaming of requests.

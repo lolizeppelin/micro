@@ -51,7 +51,8 @@ func (s *KafkaSubscriber) Unsubscribe() error {
 	s.wg.Wait() // 等待循环推出
 	for {       // 处理剩余记录
 		fetches := s.client.PollRecords(ctx, 100)
-		if s.fire(fetches) <= 0 {
+		s.fire(fetches)
+		if fetches.IsClientClosed() {
 			break
 		}
 	}

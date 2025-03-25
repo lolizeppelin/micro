@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"reflect"
 	"sync"
 )
 
@@ -64,7 +65,8 @@ func (m *VersionedMap[K, V]) StoreNew(key K, value V) bool {
 		m.storages[key] = value
 		return true
 	}
-	if v == nil || value.Version() > v.Version() {
+	// 确保所有 V 的实例都是指针类型，否则 IsNil() 可能 panic（如值类型调用会 panic）。
+	if reflect.ValueOf(v).IsNil() || value.Version() > v.Version() {
 		m.storages[key] = value
 		return true
 	}

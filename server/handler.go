@@ -28,6 +28,10 @@ const (
 	HandlerScope = "micro/server/handler"
 )
 
+var (
+	_version, _ = micro.NewVersion("1.0.0")
+)
+
 func (g *RPCServer) handler(ctx context.Context, msg *tp.Message) (*tp.Message, error) {
 
 	statusCode := codes.OK
@@ -63,7 +67,7 @@ func (g *RPCServer) handler(ctx context.Context, msg *tp.Message) (*tp.Message, 
 func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Message) (err error) {
 
 	var span oteltrace.Span
-	tracer := tracing.GetTracer(HandlerScope)
+	tracer := tracing.GetTracer(HandlerScope, _version)
 	ctx, span = tracer.Start(ctx, "process.request",
 		oteltrace.WithAttributes(
 			attribute.String("service", g.opts.Name),
