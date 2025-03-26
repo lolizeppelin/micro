@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"context"
 	"crypto/tls"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/transport"
@@ -16,12 +17,14 @@ type Options struct {
 
 	// Handler executed when error happens in broker message
 	// processing
-	ErrorHandler func(string, *kgo.Record, error)
+	ErrorHandler ErrorHandler
 
 	TLSConfig *tls.Config
 	Address   []string
 	Secure    bool
 }
+
+type ErrorHandler func(context.Context, string, *kgo.Record, error)
 
 type Option func(*Options)
 
@@ -33,13 +36,13 @@ func _unmarshal(b []byte) (*transport.Message, error) {
 	return msg, nil
 }
 
-func _errHandler(u string, record *kgo.Record, err error) {
+func _noneHandler(context.Context, string, *kgo.Record, error) {
 	return
 }
 
 func NewOptions(opts ...Option) *Options {
 	options := Options{
-		ErrorHandler: _errHandler,
+		ErrorHandler: _noneHandler,
 	}
 	for _, o := range opts {
 		o(&options)
@@ -66,7 +69,7 @@ func Address(address ...string) Option {
 
 // ErrorHandler will catch all broker errors that cant be handled
 // in normal way, for example Codec errors.
-func ErrorHandler(fallback func(string, *kgo.Record, error)) Option {
+func WithErrorHandler(fallback ErrorHandler) Option {
 	return func(o *Options) {
 		o.ErrorHandler = fallback
 	}

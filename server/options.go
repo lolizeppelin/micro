@@ -167,6 +167,7 @@ func NewOptions(name string) Options {
 		Interval:      time.Second * 30,
 		RegisterCheck: registry.DefaultRegisterCheck,
 		Credentials:   insecure.NewCredentials(),
+		WaitGroup:     new(sync.WaitGroup),
 	}
 
 }

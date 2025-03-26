@@ -195,6 +195,10 @@ func (g *RPCServer) Stop() error {
 
 func NewServer(opts *Options) (*RPCServer, error) {
 
+	if opts.Id <=0 || opts.Id > MaxServerSN {
+		return nil, fmt.Errorf("server id error")
+	}
+
 	if opts.Version == nil {
 		return nil, fmt.Errorf("version required")
 	}

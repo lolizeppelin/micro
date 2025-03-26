@@ -181,9 +181,7 @@ func LoadGeneralJsonFiles(targets []string, skip bool, loop int) (map[string]any
 			if err = LoadJson(file, &tmp); err != nil {
 				return nil, err
 			}
-			for k, v := range tmp {
-				cfg[k] = v
-			}
+			MergeJsonMaps(cfg, tmp)
 		}
 	}
 	return cfg, nil
