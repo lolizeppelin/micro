@@ -69,7 +69,7 @@ func MergeJsonMaps(dest, src map[string]any) map[string]any {
 			srcMap, srcIsMap := srcVal.(map[string]any)
 			// 如果双方都是map，则递归合并
 			if destIsMap && srcIsMap {
-				MergeJsonMaps(destMap, srcMap)
+				dest[key] = MergeJsonMaps(destMap, srcMap)
 			} else {
 				// 否则直接覆盖（包括类型不同的情况）
 				dest[key] = srcVal

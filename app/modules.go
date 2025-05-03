@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/utils"
@@ -18,15 +19,15 @@ func startModules(modules []micro.Module) error {
 	return nil
 }
 
-func shutdownModules(modules []micro.Module) {
+func shutdownModules(ctx context.Context, modules []micro.Module) {
 	_modules := utils.SliceReverse(modules)
 	for _, m := range _modules {
 		m.BeforeShutdown()
 	}
 	for _, m := range _modules {
 		if err := m.Shutdown(); err != nil {
-			log.Warnf("error stopping module: %s", err.Error())
+			log.Warnf(ctx, "error stopping module: %s", err.Error())
 		}
 	}
-	log.Info("all module stopped success")
+	log.Info(ctx, "all module stopped success")
 }

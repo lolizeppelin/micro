@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/lolizeppelin/micro/log"
 	clientV3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"net"
@@ -73,6 +72,5 @@ func NewEtcdClient(opts ...Option) (*clientV3.Client, error) {
 		c.Close()
 		return nil, fmt.Errorf("connect etcd failed")
 	}
-	log.Info("etcd connected")
 	return c, err
 }

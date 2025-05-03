@@ -19,7 +19,7 @@ type Broker interface {
 	Connect() error
 	Disconnect() error
 	Publish(ctx context.Context, topic string, m *transport.Message) error
-	Subscribe(topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
+	Subscribe(ctx context.Context, topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
 	Name() string
 }
 

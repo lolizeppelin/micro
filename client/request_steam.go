@@ -84,7 +84,7 @@ func (r *rpcStream) Closed() bool {
 	return closed
 }
 
-func (r *rpcStream) Close() error {
+func (r *rpcStream) Close(ctx context.Context) error {
 	r.Lock()
 	if r.closed {
 		r.Unlock()
@@ -100,7 +100,7 @@ func (r *rpcStream) Close() error {
 			},
 		})
 		if err != nil {
-			log.Errorf("send close package failed: %s", err.Error())
+			log.Errorf(ctx, "send close package failed: %s", err.Error())
 		}
 	}
 	return r.client.Close()
@@ -161,8 +161,8 @@ func (r *rpcClient) stream(ctx context.Context, node *micro.Node,
 
 	if err != nil {
 		// close the stream
-		if err = stream.Close(); err != nil {
-			log.Errorf("failed to close stream: %v", err)
+		if err = stream.Close(ctx); err != nil {
+			log.Errorf(ctx, "failed to close stream: %v", err)
 		}
 		return nil, err
 	}

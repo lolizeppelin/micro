@@ -10,6 +10,12 @@ import (
 
 const (
 	DefaultPrefix = "/micro/config/"
+
+	EtcdConfigScope = "micro/config/watcher"
+)
+
+var (
+	_version, _ = micro.NewVersion("1.0.0")
 )
 
 type EtcdConfig struct {
@@ -158,8 +164,8 @@ func (e *EtcdConfig) UpdatePut(ctx context.Context, key string, value string, ve
 	return 0, micro.ErrUnknown
 }
 
-func (e *EtcdConfig) Watch(key string, handler func(string, []*clientv3.Event, error)) {
-	newWatcher(e, e.prefix+key, handler)
+func (e *EtcdConfig) Watch(ctx context.Context, key string, handler WatchHandler) {
+	newWatcher(ctx, e, e.prefix+key, handler)
 }
 
 func (e *EtcdConfig) Close() {

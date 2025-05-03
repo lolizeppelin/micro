@@ -73,17 +73,19 @@ func (g *RPCServer) Start() error {
 
 	config := g.opts
 
-	log.Infof("Server [grpc] Listening on %s", g.opts.Listener.Addr())
+	ctx := context.Background()
+
+	log.Infof(ctx, "Server [grpc] Listening on %s", g.opts.Listener.Addr())
 
 	go func() {
 		if err := g.server.Serve(g.opts.Listener); err != nil {
-			log.Errorf("gRPC Server start error: %v", err)
+			log.Errorf(ctx, "gRPC Server start error: %v", err)
 		}
 	}()
 
 	go func() {
-		if err := g.Register(); err != nil {
-			log.Errorf("Server register error: %s", err.Error())
+		if err := g.Register(ctx); err != nil {
+			log.Errorf(ctx, "Server register error: %s", err.Error())
 		}
 	}()
 
@@ -104,24 +106,23 @@ func (g *RPCServer) Start() error {
 				g.RLock()
 				registered := g.registered
 				g.RUnlock()
-				ctx := context.Background()
 
 				checkErr := g.opts.RegisterCheck(ctx)
 				if checkErr != nil && registered {
-					log.Errorf("Server %s-%d register check error: %s, deregister it",
+					log.Errorf(ctx, "Server %s-%d register check error: %s, deregister it",
 						config.Name, config.Id, checkErr.Error())
 					// deregister self in case of error
-					if err = g.Deregister(); err != nil {
-						log.Errorf("Server %s-%s deregister error: %s", config.Name, config.Id, err)
+					if err = g.Deregister(ctx); err != nil {
+						log.Errorf(ctx, "Server %s-%s deregister error: %s", config.Name, config.Id, err)
 					}
 				} else if checkErr != nil && !registered {
-					log.Errorf("Server %s-%d register check error: %s",
+					log.Errorf(ctx, "Server %s-%d register check error: %s",
 						config.Name, config.Id, checkErr.Error())
 					continue
 				}
 				// Register 内部包含续租
-				if err = g.Register(); err != nil {
-					log.Errorf("Server register error: %s", err.Error())
+				if err = g.Register(ctx); err != nil {
+					log.Errorf(ctx, "Server register error: %s", err.Error())
 				}
 
 			// wait for exit
@@ -131,8 +132,8 @@ func (g *RPCServer) Start() error {
 		}
 
 		// deregister self
-		if err = g.Deregister(); err != nil {
-			log.Errorf("server deregister error: %s", err.Error())
+		if err = g.Deregister(ctx); err != nil {
+			log.Errorf(ctx, "server deregister error: %s", err.Error())
 		}
 		// wait for waitgroup
 		g.wg.Wait()
@@ -151,10 +152,10 @@ func (g *RPCServer) Start() error {
 		}
 
 		if config.Broker != nil {
-			log.Infof("broker Disconnected")
+			log.Infof(ctx, "broker Disconnected")
 			// disconnect broker
 			if err = config.Broker.Disconnect(); err != nil {
-				log.Errorf("broker disconnect error: %v", err)
+				log.Errorf(ctx, "broker disconnect error: %v", err)
 			}
 		}
 
@@ -195,7 +196,7 @@ func (g *RPCServer) Stop() error {
 
 func NewServer(opts *Options) (*RPCServer, error) {
 
-	if opts.Id <=0 || opts.Id > MaxServerSN {
+	if opts.Id <= 0 || opts.Id > MaxServerSN {
 		return nil, fmt.Errorf("server id error")
 	}
 

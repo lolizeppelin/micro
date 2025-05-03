@@ -23,7 +23,7 @@ type MetricBatch struct {
 
 type MetricConfig struct {
 	Driver      string                 `json:"driver" description:"Metric驱动"` // e.g prometheus/victoriametrics/greptime
-	Endpoint    string                 `json:"endpoints" description:"Metric接口地址uri"`
+	Endpoint    string                 `json:"endpoint" description:"Metric接口地址uri"`
 	Batch       MetricBatch            `json:"batch" description:"批量上传配置"`
 	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`
 	Options     map[string]any         `json:"options,omitempty" description:"驱动独立参数"`

@@ -57,7 +57,7 @@ func ContextDelete(ctx context.Context, k string) context.Context {
 
 // ContextSet add key with val to metadata.
 func ContextSet(ctx context.Context, k, v string) context.Context {
-	md, ok := FromContext(ctx)
+	md, ok := ctx.Value(metadataKey{}).(Metadata)
 	if !ok {
 		md = make(Metadata)
 	}
@@ -65,6 +65,9 @@ func ContextSet(ctx context.Context, k, v string) context.Context {
 		delete(md, k)
 	} else {
 		md[k] = v
+	}
+	if ok {
+		return ctx
 	}
 	return context.WithValue(ctx, metadataKey{}, md)
 }
@@ -87,7 +90,7 @@ func ContextGet(ctx context.Context, key string) (string, bool) {
 	return val, ok
 }
 
-// FromContext returns metadata from the given context.
+// FromContext returns copied metadata from the given context.
 func FromContext(ctx context.Context) (Metadata, bool) {
 	md, ok := ctx.Value(metadataKey{}).(Metadata)
 	if !ok {
@@ -104,15 +107,11 @@ func FromContext(ctx context.Context) (Metadata, bool) {
 }
 
 func CopyFromContext(ctx context.Context) map[string]string {
-	headers := make(map[string]string)
 	md, ok := FromContext(ctx)
 	if !ok {
-		// capitalise all value
-		for k, v := range md {
-			headers[eng.String(k)] = v
-		}
+		return make(map[string]string)
 	}
-	return headers
+	return md
 }
 
 // NewContext creates a new context with the given metadata.

@@ -20,6 +20,7 @@ func NewHTTPExport(ctx context.Context, conf TracerConfig) (trace.SpanExporter, 
 	return otlptracehttp.New(ctx,
 		otlptracehttp.WithEndpoint(address),
 		otlptracehttp.WithTLSClientConfig(tls),
+		//otlptracehttp.WithInsecure(),
 		otlptracehttp.WithHeaders(conf.Auth),
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{ // 重试机制
 			Enabled:         true,

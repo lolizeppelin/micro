@@ -1,8 +1,10 @@
 package broker
 
 import (
+	"context"
 	"fmt"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"time"
 )
 
 type KafkaBroker struct {
@@ -18,7 +20,9 @@ func (k *KafkaBroker) Connect() error {
 	if k.producer != nil {
 		return fmt.Errorf("producer connected")
 	}
-	producer, err := NewKafkaProducer(k.opts.Address)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	producer, err := NewKafkaProducer(ctx, k.opts.Address)
 	if err != nil {
 		return err
 	}

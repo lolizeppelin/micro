@@ -21,7 +21,7 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 	protocols := request.Protocols()
 
 	var span oteltrace.Span
-	tracer := tracing.GetTracer(CallScope)
+	tracer := tracing.GetTracer(CallScope, _version)
 	ctx, span = tracer.Start(ctx, "node.selector",
 		oteltrace.WithSpanKind(oteltrace.SpanKindInternal),
 		oteltrace.WithAttributes(
@@ -60,14 +60,14 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 						// 校验请求与返回协议
 						if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["req"]) ||
 							!micro.MatchCodec(protocols.Response, ep.Metadata["res"]) {
-							return nil, exc.BadRequest("go.micro.client.selector", "request or response type mismatch")
+							return nil, exc.BadRequest("micro.client.selector", "request or response type mismatch")
 						}
 						if ep.Internal && !opts.Internal { // 屏蔽内部rpc请求
-							return nil, exc.Forbidden("go.micro.client.selector", "disabled request")
+							return nil, exc.Forbidden("micro.client.selector", "disabled request")
 						}
 						pk := request.PrimaryKey() == ""
 						if (ep.PrimaryKey && !pk) || (pk && !ep.PrimaryKey) {
-							return nil, exc.BadRequest("go.micro.client.selector", "request path param error")
+							return nil, exc.BadRequest("micro.client.selector", "request path param error")
 						}
 						found = true
 						break
@@ -121,13 +121,13 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 	if err != nil {
 		span.RecordError(err)
 		if errors.Is(err, micro.ErrSelectServiceNotFound) {
-			return nil, exc.ServiceUnavailable("micro.client", err.Error())
+			return nil, exc.ServiceUnavailable("micro.client.selector", err.Error())
 		}
 		if errors.Is(err, micro.ErrNoneServiceAvailable) {
-			return nil, exc.ServiceUnavailable("micro.client", err.Error())
+			return nil, exc.ServiceUnavailable("micro.client.selector", err.Error())
 		}
 		if errors.Is(err, micro.ErrSelectEndpointNotFound) {
-			return nil, exc.NotFound("go.micro.client", err.Error())
+			return nil, exc.NotFound("go.micro.client.selector", err.Error())
 		}
 		return nil, err
 	}

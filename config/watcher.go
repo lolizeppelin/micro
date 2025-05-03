@@ -3,9 +3,14 @@ package config
 import (
 	"context"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/tracing"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"sync"
 )
+
+type WatchHandler func(context.Context, string, []*clientv3.Event, error)
 
 func newMap() *wMap {
 	return &wMap{
@@ -21,27 +26,28 @@ type wMap struct {
 }
 
 type watcher struct {
+	ctx     context.Context
 	key     string
 	ch      clientv3.WatchChan
 	exit    chan bool
-	handler func(string, []*clientv3.Event, error)
+	handler WatchHandler
 }
 
-func newWatcher(ec *EtcdConfig, key string, handler func(string, []*clientv3.Event, error)) {
+func newWatcher(ctx context.Context, ec *EtcdConfig, key string, handler WatchHandler) {
 	watchers := ec.watchers
 
 	watchers.Lock()
 	defer watchers.Unlock()
 	if watchers.stopped {
-		handler(key, nil, micro.ErrWatcherStopped)
+		handler(ctx, key, nil, micro.ErrWatcherStopped)
 		return
 	}
 	wc, ok := watchers.watchers[key]
 	if ok {
-		wc.Stop()
+		_ = wc.Stop()
 	}
-
 	_w := &watcher{
+		ctx:     ctx,
 		key:     key,
 		ch:      ec.watcher.Watch(context.Background(), key, clientv3.WithPrefix()),
 		exit:    make(chan bool),
@@ -59,9 +65,22 @@ func (w *watcher) run() {
 			if !ok {
 				return
 			}
-			w.handler(w.key, rsp.Events, nil)
+			tracer := tracing.GetTracer(EtcdConfigScope, _version)
+			ctx, span := tracer.Start(w.ctx, "etch.watcher",
+				oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+				oteltrace.WithAttributes(
+					attribute.String("key", w.key),
+				),
+				oteltrace.WithAttributes(
+					attribute.Int("count", len(rsp.Events)),
+				),
+			)
+			defer span.End()
+
+			w.handler(ctx, w.key, rsp.Events, nil)
 		case <-w.exit:
-			w.handler(w.key, nil, micro.ErrWatcherStopped)
+			//ctx := w.ctx
+			//w.handler(ctx, w.key, nil, micro.ErrWatcherStopped)
 			return
 		}
 	}
@@ -83,6 +102,6 @@ func stopAll(ec *EtcdConfig) {
 	defer watchers.Unlock()
 	watchers.stopped = true
 	for _, wc := range watchers.watchers {
-		wc.Stop()
+		_ = wc.Stop()
 	}
 }

@@ -2,6 +2,6 @@ package server_test
 
 import "testing"
 
-func TestHandler(t *testing.T) {
+func TestCall(t *testing.T) {
 
 }

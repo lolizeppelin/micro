@@ -161,7 +161,7 @@ func (r *rpcClient) Call(ctx context.Context, request micro.Request, opts ...Cal
 			if !retry {
 				return nil, err
 			}
-			log.Debugf("Retrying request. Previous attempt failed with: %v", err)
+			log.Debugf(ctx, "Retrying request. Previous attempt failed with: %v", err)
 		}
 	}
 

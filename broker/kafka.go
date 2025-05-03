@@ -6,7 +6,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func NewKafkaConsumer(address []string, topics string, opts SubscribeOptions) (*kgo.Client, error) {
+func NewKafkaConsumer(ctx context.Context, address []string, topics string, opts SubscribeOptions) (*kgo.Client, error) {
 	options := []kgo.Opt{
 		kgo.SeedBrokers(address...),
 		kgo.ConsumerGroup(opts.Queue),
@@ -20,14 +20,14 @@ func NewKafkaConsumer(address []string, topics string, opts SubscribeOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	err = client.Ping(context.Background())
+	err = client.Ping(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return client, nil
 }
 
-func NewKafkaProducer(address []string, autoAck ...bool) (*kgo.Client, error) {
+func NewKafkaProducer(ctx context.Context, address []string, autoAck ...bool) (*kgo.Client, error) {
 	options := []kgo.Opt{
 		kgo.SeedBrokers(address...),
 		kgo.DisableIdempotentWrite(),
@@ -43,10 +43,10 @@ func NewKafkaProducer(address []string, autoAck ...bool) (*kgo.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = client.Ping(context.Background())
+	err = client.Ping(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("connect kafka success")
+	log.Info(ctx, "connect kafka success")
 	return client, nil
 }

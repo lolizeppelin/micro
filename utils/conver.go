@@ -37,6 +37,11 @@ func UnsafeStrToI32(value string) int32 {
 	return int32(v)
 }
 
+func UnsafeStrToI64(value string) int64 {
+	v, _ := StringToInt(value)
+	return int64(v)
+}
+
 func JsonConvert(a, b any) error {
 	buff, ok := a.([]byte)
 	if !ok {

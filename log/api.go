@@ -3,128 +3,96 @@ package log
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"io/fs"
-	"os"
+	"github.com/lolizeppelin/micro/log/internal"
+	"log/slog"
 	"path/filepath"
-	"syscall"
 )
 
-func Setup(program string, logDir string, level logrus.Level) error {
-	if LOG != nil {
-		panic("log already setup")
+func Setup(program string, logDir string, level slog.Level) error {
+	logger = logger.With("program", program)
+	if level <= slog.LevelDebug {
+		internal.IgnorePC = false
 	}
-	l, err := Mount(logDir, program, level)
-	if err != nil {
-		return err
-	}
-	formatter := NewFormatter()
-	if level >= logrus.DebugLevel {
-		formatter.CustomCallerFormatter = caller
-		l.SetReportCaller(true)
-	}
-	l.SetFormatter(formatter)
-	LOG = l.Logger().WithFields(logrus.Fields{"program": program})
-	// 发送SIGTERM给自身进程
-	l.Logger().ExitFunc = func(i int) {
-		p, _ := os.FindProcess(os.Getpid())
-		if p != nil {
-			LOG.Warnf("logrus send exit signal")
-			_ = p.Signal(syscall.SIGTERM)
+	handler.opts.Level = level
+	if logDir != "" {
+		path := filepath.Join(logDir, fmt.Sprintf("%s.log", program))
+		if err := handler.AppendFile(path); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func Mount(logDir string, name string, level logrus.Level) (*Logger, error) {
-	var l *Logger
-	var err error
-	if len(logDir) < 1 { // use stderr
-		l, err = newLogger(name, "")
-	} else {
-		var info fs.FileInfo
-		info, err = os.Lstat(logDir)
-		if err != nil {
-			return nil, err
-		}
-		if !info.IsDir() {
-			return nil, fmt.Errorf("logging path %s is not exist or not a directory", logDir)
-		}
-		l, err = newLogger(name, filepath.Join(logDir, fmt.Sprintf("%s.log", name)))
-	}
-	if err != nil {
-		return nil, err
-	}
-	l.SetLevel(level)
-	return l, nil
+func Stack(ctx context.Context, msg string, stack []byte) {
+	logger.ErrorContext(ctx, msg, "stack", stack)
 }
 
-func Info(args ...interface{}) {
-	LOG.Info(args...)
+func Info(ctx context.Context, msg string, attrs ...any) {
+	logger.InfoContext(ctx, msg, attrs...)
 }
 
-func Warn(args ...interface{}) {
-	LOG.Warn(args...)
+func Warn(ctx context.Context, msg string, attrs ...any) {
+	logger.WarnContext(ctx, msg, attrs...)
 }
 
-func Warning(args ...interface{}) {
-	LOG.Warn(args...)
+func Warning(ctx context.Context, msg string, attrs ...any) {
+	logger.WarnContext(ctx, msg, attrs...)
 }
 
-func Error(args ...interface{}) {
-	LOG.Error(args...)
+func Error(ctx context.Context, msg string, attrs ...any) {
+	logger.ErrorContext(ctx, msg, attrs...)
 }
 
-func Trace(args ...interface{}) {
-	LOG.Trace(args...)
+func Trace(ctx context.Context, msg string, attrs ...any) {
+	logger.DebugContext(ctx, msg, attrs...)
 }
 
-func Debug(args ...interface{}) {
-	LOG.Debug(args...)
+func Debug(ctx context.Context, msg string, attrs ...any) {
+	logger.DebugContext(ctx, msg, attrs...)
 }
 
-func Fatal(args ...interface{}) {
-	LOG.Fatal(args...)
+func Fatal(ctx context.Context, msg string, attrs ...any) {
+	logger.ErrorContext(ctx, msg, attrs...)
 }
 
-func Infof(format string, args ...interface{}) {
-	LOG.Infof(format, args...)
+func Infof(ctx context.Context, format string, args ...any) {
+	logger.InfoContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Warnf(format string, args ...interface{}) {
-	LOG.Warnf(format, args...)
+func Warnf(ctx context.Context, format string, args ...any) {
+	logger.WarnContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Warningf(format string, args ...interface{}) {
-	LOG.Warnf(format, args...)
+func Warningf(ctx context.Context, format string, args ...any) {
+	logger.WarnContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Errorf(format string, args ...interface{}) {
-	LOG.Errorf(format, args...)
+func Errorf(ctx context.Context, format string, args ...any) {
+	logger.ErrorContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Debugf(format string, args ...interface{}) {
-	LOG.Debugf(format, args...)
+func Debugf(ctx context.Context, format string, args ...any) {
+	logger.DebugContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Tracef(format string, args ...interface{}) {
-	LOG.Tracef(format, args...)
+func Tracef(ctx context.Context, format string, args ...any) {
+	logger.DebugContext(ctx, fmt.Sprintf(format, args...))
 }
 
-func Fatalf(format string, args ...interface{}) {
-	LOG.Fatalf(format, args...)
-}
-
-func WithContext(ctx context.Context) *logrus.Entry {
-	return LOG.WithContext(ctx)
+func Fatalf(ctx context.Context, format string, args ...any) {
+	logger.ErrorContext(ctx, fmt.Sprintf(format, args...))
 }
 
 func IsDebugEnabled() bool {
-	return LOG.Logger.IsLevelEnabled(logrus.DebugLevel)
+	return slog.LevelDebug <= handler.Level()
 }
 
-func AddHook(hook logrus.Hook) {
-	for _, l := range loggers {
-		l.AddHook(hook)
-	}
+// AppendHandler 非线程安全, 初始化时调用后不需要在调用
+func AppendHandler(name string, h slog.Handler) {
+	handler.AppendHandler(name, h)
+}
+
+// AppendFileHandler 非线程安全, 初始化时调用后不需要在调用
+func AppendFileHandler(name string, builder ...FileHandlerBuilder) error {
+	return handler.AppendFile(name, builder...)
 }

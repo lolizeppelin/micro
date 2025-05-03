@@ -1,21 +1,12 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"github.com/lolizeppelin/micro"
-	"github.com/lolizeppelin/micro/codec"
-	exc "github.com/lolizeppelin/micro/errors"
-	"github.com/lolizeppelin/micro/log"
-	"github.com/lolizeppelin/micro/tracing"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/lolizeppelin/micro/utils/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
-	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/encoding"
 	"net/http"
-	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
@@ -83,202 +74,6 @@ func ServiceMethod(m string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-type Handler struct {
-	Resource       string                 // resource name
-	Collection     string                 // collection name
-	Name           string                 // method name
-	Rtype          reflect.Type           // 结构体
-	Receiver       *reflect.Value         // receiver of method
-	Method         reflect.Method         // method stub
-	Query          reflect.Type           // 请求url query pram参数校验器
-	Request        reflect.Type           // 请求参数
-	QueryValidator *gojsonschema.Schema   // 请求参数校验器
-	BodyValidator  *gojsonschema.Schema   // 请求载荷校验器
-	Response       reflect.Type           // 返回参数
-	Metadata       map[string]string      // 元数据
-	Internal       bool                   // 内部rpc，不对外, 文档接口与http api需要屏蔽
-	Hooks          []micro.PreExecuteHook // 执行前
-}
-
-/*
-BuildArgs rpc转发将请求转数据转化为反射调用参数
-*/
-func (handler *Handler) BuildArgs(ctx context.Context, protocol string, query url.Values, body []byte) ([]reflect.Value, error) {
-
-	var err error
-	var span oteltrace.Span
-
-	tracer := tracing.GetTracer(HandlerScope, _version)
-	ctx, span = tracer.Start(ctx, "handler.reflect",
-		oteltrace.WithAttributes(
-			attribute.String("resource", handler.Resource),
-			attribute.String("name", handler.Name),
-		),
-	)
-
-	defer func() {
-		if err != nil && span.IsRecording() {
-			span.RecordError(err)
-		}
-		span.End()
-	}()
-
-	if handler.Query == nil && handler.Request == nil {
-		span.AddEvent("skip")
-		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx)}, nil
-	}
-
-	var _query reflect.Value
-	if handler.Query == nil {
-		_query = reflect.ValueOf(nil)
-	} else { // validator query parameters
-		span.AddEvent("query.decode")
-		_query = reflect.New(handler.Query.Elem())
-		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
-		// url.Values转结构体
-		p := _query.Interface()
-		if err = codec.UnmarshalQuery(endpoint, query, p); err != nil {
-			log.Debug("unmarshal request query error")
-			err = exc.BadRequest("micro.server", "Unmarshal request query failed")
-			return nil, err
-		}
-		span.AddEvent("query.validate")
-		// 进行json schema校验
-		var result *gojsonschema.Result
-		result, err = handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
-		if err != nil {
-			log.Debug("validate request query error")
-			return nil, err
-		}
-		if !result.Valid() {
-			log.Debug("validate request query failed")
-			msg := fmt.Sprintf("Validate request query failed")
-			for _, desc := range result.Errors() {
-				msg = fmt.Sprintf("%s %s", msg, desc)
-			}
-			err = exc.BadRequest("micro.server", msg)
-			return nil, err
-		}
-	}
-
-	if handler.Request == nil {
-		span.AddEvent("query.hook")
-		for i, hook := range handler.Hooks {
-			ctx, err = hook(ctx, query, body)
-			if err != nil {
-				log.Debug("request execute %d hook  failed", i)
-				return nil, err
-			}
-		}
-		return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query}, nil
-	}
-
-	span.AddEvent("body.protocol")
-	// 请求协议
-	_codec := encoding.GetCodec(protocol)
-	if _codec == nil {
-		err = exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
-		return nil, err
-	}
-	// body使用jsonschema校验 TODO 非json无法校验,需要处理
-	if handler.BodyValidator != nil {
-		span.AddEvent("body.validate")
-		var result *gojsonschema.Result
-		result, err = handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
-		if err != nil {
-			log.Debug("validate request body error")
-			err = exc.BadRequest("micro.server", "decode body failed")
-			return nil, err
-		}
-		if !result.Valid() {
-			log.Debug("validate request body failed")
-			msg := fmt.Sprintf("validate request body failed")
-			for _, desc := range result.Errors() {
-				msg = fmt.Sprintf("%s %s", msg, desc)
-			}
-			err = exc.BadRequest("micro.server", msg)
-			return nil, err
-		}
-	}
-	// 按协议解析数据流
-	var arg reflect.Value
-	if handler.Request == utils.TypeOfBytes {
-		arg = reflect.Zero(handler.Request)
-	} else {
-		arg = reflect.New(handler.Request.Elem())
-	}
-	span.AddEvent("body.decode")
-	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
-		return nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
-	}
-
-	for i, hook := range handler.Hooks {
-		span.AddEvent("request.hook")
-		ctx, err = hook(ctx, query, body)
-		if err != nil {
-			log.Debug("resource %s call %s, execute %d hook failed", handler.Resource, handler.Name, i)
-			return nil, err
-		}
-	}
-	return []reflect.Value{*handler.Receiver, reflect.ValueOf(ctx), _query, arg}, nil
-}
-
-/*
-Match 判断请求头类型是否匹配
-*/
-func (handler *Handler) Match(request, response string) bool {
-	//return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
-	return micro.MatchCodec(request, handler.Metadata["req"]) &&
-		micro.MatchCodec(response, handler.Metadata["res"])
-}
-
-/*
-UrlPath 获取api path
-*/
-func (handler *Handler) UrlPath() (resource, path, method string) {
-	path = "/restful/"
-	switch handler.Name {
-	case "Get":
-		method = http.MethodGet
-		resource = handler.Resource
-		path += fmt.Sprintf("%s/:id", handler.Resource)
-	case "List":
-		method = http.MethodGet
-		resource = handler.Collection
-		path += handler.Collection
-		return
-	case "Create":
-		method = http.MethodPost
-		resource = handler.Collection
-		path += handler.Collection
-		return
-	case "Update":
-		method = http.MethodPut
-		resource = handler.Resource
-		path += fmt.Sprintf("%s/:id", handler.Resource)
-		return
-	case "Patch":
-		method = http.MethodPatch
-		resource = handler.Collection
-		path += handler.Collection
-		return
-	case "Delete":
-		method = http.MethodDelete
-		resource = handler.Resource
-		path += fmt.Sprintf("%s/:id", handler.Resource)
-		return
-	default: // 非restful接口
-		resource = fmt.Sprintf("%s/%s", handler.Resource, handler.Name)
-		path = fmt.Sprintf("/%s", resource)
-		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)
-		if matches == nil { // 这是一个网关接口
-			return
-		}
-		method = matches[1]
-	}
-	return
-}
-
 func isHandlerMethod(method reflect.Method) bool {
 	mt := method.Type
 	// Method must be exported.
@@ -304,9 +99,17 @@ func isHandlerMethod(method reflect.Method) bool {
 	if mt.NumIn() >= 3 && mt.In(2).Kind() != reflect.Ptr {
 		return false
 	}
-	// 第三个参数必须是指针类型或者bytes或者函数
-	if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func &&
-		mt.In(3) != utils.TypeOfBytes {
+
+	//if mt.NumIn() == 4 && mt.In(3).Kind() != reflect.Ptr && mt.In(3).Kind() != reflect.Func &&
+	//	mt.In(3) != utils.TypeOfBytes {
+	//	return false
+	//}
+
+	// 第三个参数必须是指针类型或者bytes或者函数或指针列表
+	if mt.NumIn() == 4 && !(mt.In(3).Kind() == reflect.Ptr ||
+		mt.In(3).Kind() == reflect.Func ||
+		mt.In(3) == utils.TypeOfBytes ||
+		(mt.In(3).Kind() == reflect.Slice && mt.In(3).Elem().Kind() == reflect.Ptr)) {
 		return false
 	}
 
@@ -428,9 +231,11 @@ func ExtractComponents(components []micro.Component) (map[string]map[string]*Han
 			continue
 		}
 		methods, hs := ExtractComponent(c)
+		for _, h := range hs {
+			h.Receiver = value
+		}
 		handlers = append(handlers, hs...)
 		for method, handler := range methods {
-			handler.Receiver = &value
 			m, ok := services[c.Name()]
 			if !ok {
 				m = make(map[string]*Handler)

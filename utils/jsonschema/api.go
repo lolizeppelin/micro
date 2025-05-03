@@ -79,7 +79,7 @@ func Marshal(value reflect.Type, additional bool) ([]byte, error) {
 
 		p := &es
 		if !additional {
-			WithAdditionalProperties(p)
+			WithAdditionalProperties(&es)
 		}
 		m := map[string]any{
 			"type":        "array",
@@ -89,11 +89,10 @@ func Marshal(value reflect.Type, additional bool) ([]byte, error) {
 		return json.Marshal(m)
 	}
 	s, _ := r.Reflect(reflect.New(value.Elem()).Interface(), jsonschema.InlineRefs)
-	p := &s
 	if !additional {
-		WithAdditionalProperties(p)
+		WithAdditionalProperties(&s)
 	}
-	return p.MarshalJSON()
+	return s.MarshalJSON()
 }
 
 func Schema(target reflect.Type, additional bool) (map[string]any, error) {

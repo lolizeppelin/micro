@@ -1,10 +1,13 @@
 package log
 
+/*
 import (
 	"bytes"
 	"fmt"
 	"github.com/lolizeppelin/micro/utils"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"runtime"
 	"sort"
 	"strings"
@@ -228,4 +231,290 @@ func NewFormatter() *Formatter {
 		CallerFirst:     true,
 		FieldsOrder:     []string{"program"},
 	}
+}
+
+func ReadableFormater() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	recordTimeFormat := "2006-01-02 15:04:05"
+	encoderConfig.StacktraceKey = "stack"
+	encoderConfig.TimeKey = "time"
+	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(t.Format(recordTimeFormat))
+	}
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+*/
+
+import (
+	"context"
+	"fmt"
+	"github.com/lolizeppelin/micro/utils"
+	"io"
+	"log/slog"
+	"runtime"
+	"strings"
+	"time"
+)
+
+type ConsoleOption func(*ConsoleOptions)
+
+type ConsoleOptions struct {
+	// 时间格式 (默认 time.StampMilli)
+	TimestampFormat string
+
+	NoColors bool
+
+	Level slog.Leveler
+}
+
+func WithTimeFormat(format string) ConsoleOption {
+	return func(o *ConsoleOptions) {
+		o.TimestampFormat = format
+	}
+}
+
+func WitOutColor(disabled bool) ConsoleOption {
+	return func(o *ConsoleOptions) {
+		o.NoColors = disabled
+	}
+}
+
+func WitHandlerLevel(level slog.Level) ConsoleOption {
+	return func(o *ConsoleOptions) {
+		o.Level = level
+	}
+}
+
+func NewConsoleHandler(w io.Writer, opts ...ConsoleOption) *ConsoleHandler {
+
+	options := &ConsoleOptions{
+		TimestampFormat: utils.TimestampFormat,
+		Level:           slog.LevelInfo,
+		NoColors:        true,
+	}
+
+	for _, o := range opts {
+		o(options)
+	}
+
+	return &ConsoleHandler{
+		writer:  w,
+		options: options,
+	}
+}
+
+// ConsoleHandler 一般用于控制台调试,方便阅读
+type ConsoleHandler struct {
+	// 基础配置
+	writer  io.Writer
+	options *ConsoleOptions
+
+	callerFormatter func(*runtime.Frame) string
+
+	attrs []slog.Attr
+	group *group
+}
+
+func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
+	minLevel := slog.LevelInfo
+	if h.options.Level != nil {
+		minLevel = h.options.Level.Level()
+	}
+	return level >= minLevel
+}
+
+func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {
+	b := &strings.Builder{}
+
+	// 时间戳
+	tf := h.options.TimestampFormat
+	if tf == "" {
+		tf = time.StampMilli
+	}
+	b.WriteString(r.Time.Format(tf))
+	b.WriteByte(' ')
+
+	// 日志级别
+	if !h.options.NoColors {
+		b.WriteString(h.levelColor(r.Level))
+	}
+	b.WriteString(strings.ToUpper(r.Level.String()[:4]))
+	if !h.options.NoColors {
+		b.WriteString("\x1b[0m")
+	}
+
+	b.WriteByte(' ')
+	stacks := h.writeFields(b, r)
+	// 消息处理
+	msg := r.Message
+
+	// 调用者信息
+	var sc string
+	if r.PC != 0 {
+		sc = h.formatCaller(r)
+	}
+
+	// 组装最终日志行
+	var final string
+
+	if sc != "" {
+		final = fmt.Sprintf("%s %s%s", b.String(), sc, msg)
+	} else {
+		final = fmt.Sprintf("%s%s", b.String(), msg)
+	}
+	_, err := h.writer.Write([]byte(final + "\n"))
+	if len(stacks) > 0 {
+		for _, attr := range stacks {
+			h.writer.Write([]byte(attr.Key + " stack: \n"))
+			h.writer.Write([]byte(attr.String()))
+		}
+	}
+	return err
+}
+
+func (h *ConsoleHandler) writeFields(b *strings.Builder, r slog.Record) []slog.Attr {
+	// 写 本地 入字段
+	for _, a := range h.attrs {
+		_, _ = fmt.Fprintf(b, "[%s:%v]", a.Key, a.Value.Any())
+	}
+
+	var stacks []slog.Attr
+
+	n := r.NumAttrs()
+	var attrs []slog.Attr
+	if n > 0 {
+		r.Attrs(func(a slog.Attr) bool {
+			attrs = append(attrs, a)
+			return true
+		})
+	}
+
+	if h.group != nil {
+		if n == 0 {
+			g := h.group.NextNonEmpty()
+			if g != nil {
+				for _, a := range g.attrs {
+					_, _ = fmt.Fprintf(b, "[%s.%s:%v]", g.name, a.Key, a.Value.Any())
+				}
+			}
+		} else {
+			g := h.group
+			for _, a := range g.attrs {
+				_, _ = fmt.Fprintf(b, "[%s.%s:%v]", g.name, a.Key, a.Value.Any())
+
+			}
+			for _, a := range attrs {
+				if a.Key == "stack" {
+					stacks = append(stacks, a)
+					continue
+				}
+				_, _ = fmt.Fprintf(b, "[%s.%s:%v]", g.name, a.Key, a.Value.Any())
+			}
+
+			g = g.next
+			for g != nil {
+				for _, a := range g.attrs {
+					_, _ = fmt.Fprintf(b, "[%s.%s:%v]", g.name, a.Key, a.Value.Any())
+
+				}
+				for _, a := range attrs {
+					_, _ = fmt.Fprintf(b, "[%s.%s:%v]", g.name, a.Key, a.Value.Any())
+				}
+				g = g.next
+			}
+		}
+
+	} else if n > 0 { // 没有分组
+		// 写 record 入字段
+		for _, a := range attrs {
+			if a.Key == "stack" {
+				stacks = append(stacks, a)
+				continue
+			}
+			_, _ = fmt.Fprintf(b, "[%s:%v]", a.Key, a.Value.Any())
+		}
+	}
+
+	return stacks
+}
+
+func (h *ConsoleHandler) formatCaller(r slog.Record) string {
+	fs := runtime.CallersFrames([]uintptr{r.PC})
+	frame, _ := fs.Next()
+
+	if h.callerFormatter != nil {
+		return h.callerFormatter(&frame)
+	}
+	return fmt.Sprintf("%s:%d ", frame.File, frame.Line)
+}
+
+// 颜色处理
+func (h *ConsoleHandler) levelColor(l slog.Level) string {
+	if h.options.NoColors {
+		return ""
+	}
+	switch {
+	case l >= slog.LevelError:
+		return "\x1b[31m" // 红色
+	case l >= slog.LevelWarn:
+		return "\x1b[33m" // 黄色
+	case l >= slog.LevelInfo:
+		return "\x1b[36m" // 青色
+	default:
+		return "\x1b[37m" // 白色
+	}
+}
+
+func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	h2 := *h
+	if h2.group != nil {
+		h2.group = h2.group.Clone()
+		h2.group.AddAttrs(attrs)
+	} else {
+		if h2.attrs == nil {
+			h2.attrs = utils.CopySlice(attrs)
+		} else {
+			h2.attrs = utils.CopySlice(h.attrs)
+			h2.attrs = append(h2.attrs, attrs...)
+		}
+	}
+	return &h2
+}
+
+func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
+	h2 := *h
+	h2.group = &group{name: name, next: h2.group}
+	return &h2
+}
+
+type group struct {
+	// name is the name of the group.
+	name string
+	// attrs are the attributes associated with the group.
+	attrs []slog.Attr
+	next  *group
+}
+
+// NextNonEmpty returns the next group within g's linked-list that has
+// attributes (including g itself). If no group is found, nil is returned.
+func (g *group) NextNonEmpty() *group {
+	if g == nil || len(g.attrs) > 0 {
+		return g
+	}
+	return g.next.NextNonEmpty()
+}
+
+// Clone returns a copy of g.
+func (g *group) Clone() *group {
+	if g == nil {
+		return g
+	}
+	g2 := *g
+	g2.attrs = utils.CopySlice(g2.attrs)
+	return &g2
+}
+
+func (g *group) AddAttrs(attrs []slog.Attr) {
+	g.attrs = append(g.attrs, attrs...)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/lolizeppelin/micro/transport"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"reflect"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -75,10 +76,10 @@ func (s *Service) dispatch(ctx context.Context, event broker.Event) (err error) 
 	defer func() {
 		wg.Done()
 		if e := event.Ack(); e != nil {
-			log.Errorf("brcker ack failed： %s", err.Error())
+			log.Errorf(ctx, "brcker ack failed： %s", err.Error())
 		}
 		if r := recover(); r != nil {
-			log.Errorf("panic recovered: \n%s", string(debug.Stack()))
+			log.Errorf(ctx, "panic recovered: \n%s", string(debug.Stack()))
 			err = exc.InternalServerError("go.micro.server", "panic recovered: %v", r)
 		}
 	}()
@@ -92,7 +93,8 @@ func (s *Service) dispatch(ctx context.Context, event broker.Event) (err error) 
 	}
 
 	ctx = transport.NewContext(ctx, hdr)
-	args, err := handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Query, msg.Body)
+	var args []reflect.Value
+	ctx, args, err = handler.BuildArgs(ctx, msg.Header[micro.ContentType], msg.Query, msg.Body)
 	if err != nil {
 		return err
 	}
@@ -100,7 +102,7 @@ func (s *Service) dispatch(ctx context.Context, event broker.Event) (err error) 
 	return nil
 }
 
-func (s *Service) SubscriberAll() error {
+func (s *Service) SubscriberAll(ctx context.Context) error {
 	if s.opts.Broker == nil {
 		return nil
 	}
@@ -111,7 +113,7 @@ func (s *Service) SubscriberAll() error {
 		if _, ok := s.subscribed[topic]; ok {
 			continue
 		}
-		sub, e := s.opts.Broker.Subscribe(topic, s.dispatch, s.opts.BrokerOpts...)
+		sub, e := s.opts.Broker.Subscribe(ctx, topic, s.dispatch, s.opts.BrokerOpts...)
 
 		if e != nil {
 			return e

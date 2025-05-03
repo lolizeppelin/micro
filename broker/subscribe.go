@@ -10,9 +10,9 @@ import (
 	"sync"
 )
 
-func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...SubscribeOption) (Subscriber, error) {
+func (k *KafkaBroker) Subscribe(ctx context.Context, topic string, handler Handler, opts ...SubscribeOption) (Subscriber, error) {
 	options := NewSubscribeOptions(opts...)
-	client, err := NewKafkaConsumer(k.opts.Address, topic, options)
+	client, err := NewKafkaConsumer(ctx, k.opts.Address, topic, options)
 	if err != nil {
 		return nil, err
 	}
@@ -25,8 +25,9 @@ func (k *KafkaBroker) Subscribe(topic string, handler Handler, opts ...Subscribe
 		fallback:  k.opts.ErrorHandler,
 		unmarshal: options.Unmarshal,
 		stop:      make(chan struct{}),
+		wg:        new(sync.WaitGroup),
 	}
-	subscriber.start()
+	go subscriber.start()
 	return subscriber, nil
 }
 
@@ -36,7 +37,7 @@ type KafkaSubscriber struct {
 	client    *kgo.Client
 	handler   Handler
 	stop      chan struct{}
-	fallback  func(string, *kgo.Record, error)
+	fallback  ErrorHandler
 	wg        *sync.WaitGroup
 	unmarshal func([]byte) (*transport.Message, error)
 }
@@ -48,6 +49,7 @@ func (s *KafkaSubscriber) Topic() string {
 func (s *KafkaSubscriber) Unsubscribe() error {
 	ctx := context.Background()
 	s.client.Close()
+	s.stop <- struct{}{}
 	s.wg.Wait() // 等待循环推出
 	for {       // 处理剩余记录
 		fetches := s.client.PollRecords(ctx, 100)
@@ -84,7 +86,7 @@ func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 	for _, record := range records {
 		ctx, msg, err := Decode(record, s.unmarshal)
 		if err != nil {
-			s.fallback("decode", record, err)
+			s.fallback(ctx, "kafka.decode", record, err)
 			continue
 		}
 		event := &kafkaEvent{
@@ -99,7 +101,7 @@ func (s *KafkaSubscriber) fire(fetches kgo.Fetches) int {
 		)
 		if err = s.handler(ctx, event); err != nil {
 			span.RecordError(err)
-			s.fallback("handler", record, err)
+			s.fallback(ctx, "kafka.handler", record, err)
 		}
 
 		span.End()

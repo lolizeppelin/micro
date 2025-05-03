@@ -35,7 +35,7 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node,
 	// as otherwise requests can't be made.
 	cTimeout := opts.ConnectionTimeout
 	if cTimeout <= transport.DefaultDialTimeout {
-		log.Debugf("overwrite to default connection timeout")
+		log.Debugf(ctx, "overwrite to default connection timeout")
 		cTimeout = transport.DefaultDialTimeout
 	}
 	// set timeout in nanoseconds
@@ -55,11 +55,11 @@ func (r *rpcClient) call(ctx context.Context, node *micro.Node,
 			if err != nil {
 				err = exc.InternalServerError("micro.client.call", "rpc call panic")
 			}
-			log.Error("rpc call panic\n%s", debug.Stack())
+			log.Errorf(ctx, "rpc call panic\n%s", debug.Stack())
 		}
 
 		if e := r.pool.Release(c, err); e != nil {
-			log.Errorf("failed to close stream %v", e.Error())
+			log.Errorf(ctx, "failed to close stream %v", e.Error())
 		}
 	}()
 

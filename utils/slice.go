@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"sort"
 	"strings"
@@ -117,6 +118,7 @@ func Supported(supports []string, target string) bool {
 	return false
 }
 
+// SliceReverse 列表倒转
 func SliceReverse[T any](s []T) []T {
 	newS := make([]T, len(s))
 	for i, j := 0, len(s)-1; i <= j; i, j = i+1, j-1 {
@@ -125,6 +127,7 @@ func SliceReverse[T any](s []T) []T {
 	return newS
 }
 
+// SliceToMap 列表传字典,key通过传入的keyFunc 获取
 func SliceToMap[T any, K comparable](s []T, keyFunc func(T) K) map[K]T {
 	result := make(map[K]T)
 	for _, item := range s {
@@ -228,4 +231,31 @@ func StrSliceJoin(values []string) string {
 // NumberSliceJoin 数字合并
 func NumberSliceJoin[T NumberType](values []T) string {
 	return SliceJoin(values, "")
+}
+
+func Sets[T comparable](slices []T) []T {
+	temp := map[T]struct{}{}
+	for _, item := range slices {
+		if _, ok := temp[item]; !ok {
+			temp[item] = struct{}{}
+		}
+	}
+	return maps.Keys(temp)
+}
+
+func SplitSlice[T any](slice []T, total int) [][]T {
+	if len(slice) < total {
+		return [][]T{
+			CopySlice(slice),
+		}
+	}
+	var result [][]T
+	for i := 0; i < len(slice); i += total {
+		end := i + total
+		if end > len(slice) {
+			end = len(slice)
+		}
+		result = append(result, slice[i:end])
+	}
+	return result
 }

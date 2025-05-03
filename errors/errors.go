@@ -17,6 +17,10 @@ func (e *Error) Error() string {
 
 // New generates a custom error.
 func New(id, detail string, code int32) error {
+	return NewError(id, detail, code)
+}
+
+func NewError(id, detail string, code int32) *Error {
 	return &Error{
 		Id:     id,
 		Code:   code,

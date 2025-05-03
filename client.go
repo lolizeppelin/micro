@@ -1,6 +1,9 @@
 package micro
 
-import "net/url"
+import (
+	"context"
+	"net/url"
+)
 
 // Request is the interface for a synchronous request used by Call or Stream.
 type Request interface {
@@ -38,7 +41,7 @@ type Stream interface {
 	Recv(string, *Response) error
 
 	// Close closes the stream
-	Close() error
+	Close(ctx context.Context) error
 }
 
 type Target struct {

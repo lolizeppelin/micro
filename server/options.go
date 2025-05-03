@@ -159,8 +159,8 @@ func WithBrokerOpts(options []broker.SubscribeOption) Option {
 	}
 }
 
-func NewOptions(name string) Options {
-	return Options{
+func NewOptions(name string) *Options {
+	return &Options{
 		Id:            1,
 		Name:          name,
 		MaxMsgSize:    DefaultMaxMsgSize,

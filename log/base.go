@@ -1,136 +1,168 @@
 package log
 
 import (
-	"github.com/sirupsen/logrus"
+	"context"
+	"fmt"
+	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/utils"
+	"io"
+	"log/slog"
 	"os"
-	"strings"
 	"sync"
 )
 
 var (
-	LOG     *logrus.Entry
-	loggers []*Logger
+	handler *multiHandlers
+	logger  *Logger
 )
 
-func newLogger(name, path string) (*Logger, error) {
-
-	var file *os.File
-	if len(path) > 0 {
-		var err error
-		file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		file = os.Stdout
+func init() {
+	opts := new(slog.HandlerOptions)
+	opts.Level = slog.LevelInfo
+	handler = &multiHandlers{
+		opts:     opts,
+		files:    utils.NewSyncMap[string, *file](),
+		handlers: map[string]slog.Handler{},
+		stdout: NewSlog(NewConsoleHandler(os.Stdout,
+			WitOutColor(false),
+			WitHandlerLevel(opts.Level.Level()))),
+		//stdout: NewSlog(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		//	AddSource: true,
+		//})),
 	}
 
-	l := &logrus.Logger{
-		Out:          file,
-		Formatter:    NewFormatter(),
-		Hooks:        make(logrus.LevelHooks),
-		Level:        logrus.InfoLevel,
-		ReportCaller: false,
-	}
-
-	logger := &Logger{logger: l, file: file, name: name}
-	loggers = append(loggers, logger)
-	return logger, nil
-
+	logger = NewSlog(handler)
 }
 
-type Logger struct {
-	name   string
-	logger *logrus.Logger
-	file   *os.File
-	lock   sync.Mutex
+type FileHandlerBuilder func(io.Writer, *slog.HandlerOptions) slog.Handler
+
+type file struct {
+	path    string
+	file    *os.File
+	builder FileHandlerBuilder
+	sync.RWMutex
 }
 
-func (l *Logger) Logger() *logrus.Logger {
-	return l.logger
+func (f *file) Write(p []byte) (n int, err error) {
+	f.RLock()
+	defer f.RUnlock()
+	return f.Write(p)
 }
 
-func (l *Logger) Reload() error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if l.file == nil {
-		return nil
-	}
-	path := l.file.Name()
-	_, err := os.Stat(l.file.Name())
-	if os.IsNotExist(err) {
-		file := l.file
-		var newFile *os.File
-		newFile, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			return err
-		}
-		l.logger.SetOutput(newFile)
-		return file.Close()
-	}
-	return err
-}
-
-func (l *Logger) SetOutput(path string) error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	var file *os.File
-	if l.file != nil {
-		file = l.file
-	}
-	newFile, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
+func (f *file) Reload() error {
+	f.Lock()
+	defer f.Unlock()
+	if newFile, err := os.OpenFile(f.path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644); err != nil {
 		return err
+	} else {
+		oldFile := f.file
+		f.file = newFile
+		return oldFile.Close()
 	}
-	l.logger.SetOutput(newFile)
-	if file != nil {
-		return file.Close()
+}
+
+type multiHandlers struct {
+	opts     *slog.HandlerOptions
+	files    *utils.SyncMap[string, *file]
+	handlers map[string]slog.Handler
+	stdout   *Logger
+}
+
+func (h *multiHandlers) Level() slog.Level {
+	return h.opts.Level.Level()
+}
+
+func (h *multiHandlers) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.opts.Level.Level()
+}
+
+func (h *multiHandlers) Handle(ctx context.Context, record slog.Record) error {
+	if len(h.handlers) == 0 {
+		return h.stdout.Handler().Handle(ctx, record)
+	}
+	for name, hdr := range h.handlers {
+		if !hdr.Enabled(ctx, record.Level) {
+			continue
+		}
+		if err := hdr.Handle(ctx, record); err != nil {
+			h.stdout.ErrorContext(ctx, fmt.Sprintf("logging handler %s record failed: %v", name, err))
+		}
 	}
 	return nil
 }
 
-func (l *Logger) SetLevel(level logrus.Level) {
-	l.logger.SetLevel(level)
-}
-
-func (l *Logger) SetReportCaller(reportCaller bool) {
-	l.logger.SetReportCaller(reportCaller)
-}
-
-func (l *Logger) SetFormatter(formatter logrus.Formatter) {
-	l.logger.SetFormatter(formatter)
-}
-
-func (l *Logger) AddHook(hook logrus.Hook) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	l.logger.AddHook(hook)
-}
-
-func (l *Logger) Close() error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if l.file != nil {
-		return nil
+func (h *multiHandlers) WithAttrs(attrs []slog.Attr) slog.Handler {
+	copied := &multiHandlers{
+		opts:     h.opts,
+		handlers: utils.CopyMap(h.handlers),
+		stdout:   NewSlog(h.stdout.Handler().WithAttrs(attrs)),
 	}
-	file := l.file
-	l.logger.SetOutput(os.Stderr)
-	l.file = nil
-	return file.Close()
+	if len(copied.handlers) == 0 {
+		return copied
+	}
+	for k, v := range copied.handlers {
+		h.handlers[k] = v.WithAttrs(attrs)
+	}
+	return copied
 }
 
-func LogLevel(level string) logrus.Level {
-	switch strings.ToLower(level) {
-	case "trace":
-		return logrus.TraceLevel
-	case "warning":
-		return logrus.WarnLevel
-	case "warn":
-		return logrus.WarnLevel
-	case "info":
-		return logrus.InfoLevel
-	case "debug":
-		return logrus.DebugLevel
+func (h *multiHandlers) WithGroup(name string) slog.Handler {
+
+	copied := &multiHandlers{
+		opts:     h.opts,
+		handlers: utils.CopyMap(h.handlers),
+		stdout:   h.stdout.WithGroup(name),
 	}
-	return logrus.InfoLevel
+	for k, v := range copied.handlers {
+		h.handlers[k] = v.WithGroup(name)
+	}
+	return copied
+}
+
+// AppendFile 添加文件
+func (h *multiHandlers) AppendFile(path string, builder ...FileHandlerBuilder) error {
+	_, ok := h.files.Load(path)
+	if ok {
+		return micro.ErrAlreadyExists
+	}
+	_, err := os.Stat(path)
+	if err != nil && os.IsNotExist(err) {
+		return err
+	}
+
+	var f *os.File
+	f, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+
+	writer := &file{
+		path: path,
+		file: f,
+	}
+
+	var hdr slog.Handler
+	if len(builder) > 0 && builder[0] != nil {
+		writer.builder = builder[0]
+		hdr = writer.builder(writer, h.opts)
+	} else {
+		hdr = slog.NewTextHandler(writer, h.opts)
+	}
+	h.files.Store(path, writer)
+	h.handlers[path] = hdr
+	return nil
+}
+
+func (h *multiHandlers) Reload() {
+	h.files.Range(func(path string, value *file) bool {
+		if err := value.Reload(); err != nil {
+			h.stdout.Error(fmt.Sprintf("reload file log failed:%v", err))
+		}
+		return true
+	})
+}
+
+// AppendHandler 添加非文件的handler
+func (h *multiHandlers) AppendHandler(name string, handler slog.Handler) {
+	h.handlers[name] = handler
 }

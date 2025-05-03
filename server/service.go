@@ -42,9 +42,10 @@ func newService(opts *Options) *Service {
 	node.Metadata["protocol"] = "grpc"
 
 	return &Service{
-		opts:      opts,
-		services:  services,
-		endpoints: endpoints,
+		opts:       opts,
+		services:   services,
+		endpoints:  endpoints,
+		subscribed: map[string]broker.Subscriber{},
 		registry: &micro.Service{
 			Name:      opts.Name,
 			Version:   opts.Version.Major,

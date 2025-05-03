@@ -51,6 +51,17 @@ func MergeMaps[T any](sources ...map[string]T) (map[string]T, error) {
 	return dst, nil
 }
 
+// AppendMaps 浅拷贝合并maps
+func AppendMaps[T any](sources ...map[string]T) map[string]T {
+	dst := make(map[string]T)
+	for _, s := range sources {
+		for k, v := range s {
+			dst[k] = v
+		}
+	}
+	return dst
+}
+
 // MergeSliceMaps 通过序列号深拷贝后合并
 func MergeSliceMaps[T any](key string, sources ...any) (map[string]T, error) {
 	tmp := make([]map[string]T, 0)

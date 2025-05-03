@@ -2,6 +2,7 @@
 package cache
 
 import (
+	"context"
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/log"
 	"math"
@@ -318,6 +319,8 @@ func (c *cache) run(service string) {
 
 	var a, b int
 
+	ctx := context.Background()
+
 	for {
 		// exit early if already dead
 		if c.quit() {
@@ -339,7 +342,7 @@ func (c *cache) run(service string) {
 			c.setStatus(err)
 
 			if a > 3 {
-				log.Debugf("rcache: %s backing off %d", err.Error(), d)
+				log.Debugf(ctx, "rcache: %s backing off %d", err.Error(), d)
 				a = 0
 			}
 
@@ -362,7 +365,7 @@ func (c *cache) run(service string) {
 			c.setStatus(err)
 
 			if b > 3 {
-				log.Debugf("rcache: %s backing off %d", err.Error(), d)
+				log.Debugf(ctx, "rcache: %s backing off %d", err.Error(), d)
 				b = 0
 			}
 

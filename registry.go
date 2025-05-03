@@ -1,8 +1,10 @@
 package micro
 
+import "context"
+
 type Registry interface {
-	Register(*Service) error
-	Deregister(*Service) error
+	Register(context.Context, *Service) error
+	Deregister(context.Context, *Service) error
 	GetService(service string) ([]*Service, error)
 	ListServices() ([]*Service, error)
 	Watch(service string) (Watcher, error)

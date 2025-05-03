@@ -81,7 +81,7 @@ func (e *etcdRegistry) Client() *clientV3.Client {
 	return e.client
 }
 
-func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
+func (e *etcdRegistry) registerNode(ctx context.Context, s *micro.Service, node *micro.Node) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("require at least one node")
 	}
@@ -134,13 +134,13 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 
 	// renew the lease if it exists
 	if leaseID > 0 {
-		log.Tracef("Renewing existing lease for %s %d", s.Name, leaseID)
+		log.Debugf(ctx, "Renewing existing lease for %s %d", s.Name, leaseID)
 		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
 			if !errors.Is(err, rpctypes.ErrLeaseNotFound) {
 				return err
 			}
 
-			log.Tracef("Lease not found for %s %d", s.Name, leaseID)
+			log.Debugf(ctx, "Lease not found for %s %d", s.Name, leaseID)
 			// lease not found do register
 			leaseNotFound = true
 		}
@@ -159,7 +159,7 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 
 	// the service is unchanged, skip registering
 	if ok && v == h && !leaseNotFound {
-		log.Tracef("Service %s node %s unchanged skipping registration", s.Name, node.Id)
+		log.Debugf(ctx, "Service %s node %s unchanged skipping registration", s.Name, node.Id)
 		return nil
 	}
 
@@ -171,7 +171,8 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 		Nodes:     []*micro.Node{node},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, e.options.Timeout)
 	defer cancel()
 
 	var lgr *clientV3.LeaseGrantResponse
@@ -181,7 +182,7 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 		if err != nil {
 			return err
 		}
-		log.Tracef("Registering %s id %s with lease %v and leaseID %v and ttl %v",
+		log.Debugf(ctx, "Registering %s id %s with lease %v and leaseID %v and ttl %v",
 			service.Name, node.Id, lgr, lgr.ID, e.options.TTL)
 
 	}
@@ -207,7 +208,7 @@ func (e *etcdRegistry) registerNode(s *micro.Service, node *micro.Node) error {
 	return nil
 }
 
-func (e *etcdRegistry) Deregister(s *micro.Service) error {
+func (e *etcdRegistry) Deregister(ctx context.Context, s *micro.Service) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("require at least one node")
 	}
@@ -219,20 +220,28 @@ func (e *etcdRegistry) Deregister(s *micro.Service) error {
 		delete(e.leases, s.Name+node.Id)
 		e.Unlock()
 
-		ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
-		defer cancel()
+		log.Debugf(ctx, "deregister %s id %s", s.Name, node.Id)
 
-		log.Tracef("deregister %s id %s", s.Name, node.Id)
-		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id))
-		if err != nil {
+		f := func() error {
+			_ctx, cancel := context.WithTimeout(ctx, e.options.Timeout)
+			defer cancel()
+			_, err := e.client.Delete(_ctx, nodePath(s.Name, node.Id))
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		if err := f(); err != nil {
 			return err
 		}
+
 	}
 
 	return nil
 }
 
-func (e *etcdRegistry) Register(s *micro.Service) error {
+func (e *etcdRegistry) Register(ctx context.Context, s *micro.Service) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("require at least one node")
 	}
@@ -241,7 +250,7 @@ func (e *etcdRegistry) Register(s *micro.Service) error {
 
 	// register each node individually
 	for _, node := range s.Nodes {
-		err := e.registerNode(s, node)
+		err := e.registerNode(ctx, s, node)
 		if err != nil {
 			_err = err
 		}

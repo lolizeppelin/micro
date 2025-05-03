@@ -37,9 +37,13 @@ const (
 )
 
 func MatchCodec(protocol, codec string) bool {
-	s := strings.Split(protocol, "+")
-	if len(s) < 2 {
+	ss := strings.Split(protocol, "/")
+	if len(ss) < 2 {
 		return protocol == codec
+	}
+	s := strings.Split(ss[1], "+")
+	if len(s) < 2 {
+		return ss[1] == codec
 	}
 	return s[1] == codec
 }

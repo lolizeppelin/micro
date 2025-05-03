@@ -2,195 +2,228 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/lolizeppelin/micro"
+	"github.com/lolizeppelin/micro/codec"
 	exc "github.com/lolizeppelin/micro/errors"
 	"github.com/lolizeppelin/micro/log"
 	"github.com/lolizeppelin/micro/tracing"
-	"github.com/lolizeppelin/micro/transport"
-	tp "github.com/lolizeppelin/micro/transport/grpc/proto"
+	"github.com/lolizeppelin/micro/utils"
+	"github.com/xeipuuv/gojsonschema"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/status"
+	"net/http"
+	"net/url"
 	"reflect"
-	"runtime/debug"
-	"strconv"
-	"strings"
-	"time"
 )
 
-const (
-	HandlerScope = "micro/server/handler"
-)
-
-var (
-	_version, _ = micro.NewVersion("1.0.0")
-)
-
-func (g *RPCServer) handler(ctx context.Context, msg *tp.Message) (*tp.Message, error) {
-
-	statusCode := codes.OK
-	statusDesc := ""
-
-	response := new(tp.Message)
-	err := g.processRequest(ctx, msg, response)
-	if err != nil {
-		var errStatus *status.Status
-		var vErr *exc.Error
-		switch {
-		case errors.As(err, &vErr):
-			// micro.Error now proto based and we can attach it to grpc status
-			statusCode = exc.GrpcCodeFromMicroError(vErr)
-			statusDesc = vErr.Error()
-			vErr.Detail = strings.ToValidUTF8(vErr.Detail, "")
-			errStatus, err = status.New(statusCode, statusDesc).WithDetails(vErr)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			// default case user pass own error type that not proto based
-			statusCode = exc.ConvertCode(vErr)
-			statusDesc = vErr.Error()
-			errStatus = status.New(statusCode, statusDesc)
-		}
-		return nil, errStatus.Err()
-	}
-	return response, nil
-
+type Handler struct {
+	Resource       string                 // resource name
+	Collection     string                 // collection name
+	Name           string                 // method name
+	Rtype          reflect.Type           // 结构体
+	Receiver       reflect.Value          // receiver of method
+	Method         reflect.Method         // method stub
+	Query          reflect.Type           // 请求url query pram参数校验器
+	Request        reflect.Type           // 请求参数
+	QueryValidator *gojsonschema.Schema   // 请求参数校验器
+	BodyValidator  *gojsonschema.Schema   // 请求载荷校验器
+	Response       reflect.Type           // 返回参数
+	Metadata       map[string]string      // 元数据
+	Internal       bool                   // 内部rpc，不对外, 文档接口与http api需要屏蔽
+	Hooks          []micro.PreExecuteHook // 执行前
 }
 
-func (g *RPCServer) processRequest(ctx context.Context, request, response *tp.Message) (err error) {
+func (handler *Handler) Hook(ctx context.Context, query url.Values, body []byte) (context.Context, error) {
+	saved := ctx
+	var err error
+	for i, hook := range handler.Hooks {
+		ctx, err = hook(ctx, query, body)
+		if err != nil {
+			if ctx == nil { // 确保ctx不会替换为nil
+				ctx = saved
+			}
+			log.Debugf(ctx, "request execute %s hook %d failed", handler.Resource, i)
+			return ctx, err
+		}
+	}
+	return ctx, nil
+}
 
+/*
+BuildArgs rpc转发将请求转数据转化为反射调用参数
+*/
+func (handler *Handler) BuildArgs(ctx context.Context,
+	protocol string, query url.Values, body []byte) (context.Context, []reflect.Value, error) {
+
+	var err error
 	var span oteltrace.Span
+
 	tracer := tracing.GetTracer(HandlerScope, _version)
-	ctx, span = tracer.Start(ctx, "process.request",
+	ctx, span = tracer.Start(ctx, "handler.reflect",
 		oteltrace.WithAttributes(
-			attribute.String("service", g.opts.Name),
-			attribute.String("version", g.opts.Version.Version()),
+			attribute.String("resource", handler.Resource),
+			attribute.String("name", handler.Name),
 		),
 	)
 
 	defer func() {
-		if r := recover(); r != nil {
-			span.AddEvent("panic")
-			log.Errorf("panic recovered: %v, stack: %s", r, string(debug.Stack()))
-			err = exc.InternalServerError("go.micro.server", "panic recovered: %v", r)
+		if err != nil && span.IsRecording() {
+			span.RecordError(err)
 		}
-
 		span.End()
 	}()
 
-	endpoint, ok := request.Header[transport.Endpoint]
-	if !ok {
-		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("headers", "endpoint")))
-		return exc.InternalServerError("go.micro.server", "endpoint not found from header")
+	if handler.Query == nil && handler.Request == nil {
+		ctx, err = handler.Hook(ctx, query, body)
+		if err != nil {
+			return ctx, nil, err
+		}
+		span.AddEvent("skip")
+		return ctx, []reflect.Value{handler.Receiver, reflect.ValueOf(ctx)}, nil
 	}
-	serviceName, methodName, err := serviceMethod(endpoint)
-	if err != nil {
-		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("endpoint", "split")))
-		return exc.InternalServerError("go.micro.server", err.Error())
-	}
-	// copy the metadata to go-micro.metadata
-	log.Debugf("request %s", endpoint)
 
-	timeout := int64(0)
-	md := transport.Metadata{
-		transport.Method: request.Header[transport.Method],
-	}
-	// get grpc metadata
-	if gmd, find := metadata.FromIncomingContext(ctx); find {
-		for k, v := range gmd {
-			if k == "timeout" && len(v) > 0 {
-				timeout, _ = strconv.ParseInt(v[0], 10, 64)
+	var _query reflect.Value
+	if handler.Query == nil {
+		_query = reflect.ValueOf(nil)
+	} else { // validator query parameters
+		span.AddEvent("query.decode")
+		_query = reflect.New(handler.Query.Elem())
+		endpoint := fmt.Sprintf("%s.%s", handler.Resource, handler.Name)
+		// url.Values转结构体
+		p := _query.Interface()
+		if err = codec.UnmarshalQuery(endpoint, query, p); err != nil {
+			log.Debug(ctx, "unmarshal request query error")
+			err = exc.BadRequest("micro.server", "Unmarshal request query failed")
+			return ctx, nil, err.(error)
+		}
+		span.AddEvent("query.validate")
+		// 进行json schema校验
+		var result *gojsonschema.Result
+		result, err = handler.QueryValidator.Validate(gojsonschema.NewGoLoader(p))
+		if err != nil {
+			log.Debug(ctx, "validate request query error")
+			return ctx, nil, err
+		}
+		if !result.Valid() {
+			log.Debug(ctx, "validate request query failed")
+			msg := fmt.Sprintf("Validate request query failed")
+			for _, desc := range result.Errors() {
+				msg = fmt.Sprintf("%s %s", msg, desc)
 			}
-			md[k] = strings.Join(v, ", ")
+			err = exc.BadRequest("micro.server", msg)
+			return ctx, nil, err.(error)
 		}
 	}
-	// get peer from context
-	if p, find := peer.FromContext(ctx); find {
-		md["Remote"] = p.Addr.String()
-	}
-	ctx = transport.NewContext(ctx, md)
 
-	// set the timeout if we have it
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
-		defer cancel()
-	}
-
-	handler := g.service.Handler(serviceName, methodName)
-	if handler == nil {
-		span.AddEvent("errors", oteltrace.WithAttributes(attribute.String("handler", "none")))
-		return status.New(codes.Unimplemented, "unknown service or method").Err()
-	}
-
-	protocol, ok := request.Header[micro.ContentType]
-	accept, ok := request.Header[micro.Accept]
-
-	span.SetAttributes(attribute.String("protocol", protocol),
-		attribute.String("accept", accept),
-		attribute.String("name", handler.Name),
-		attribute.String("resource", handler.Resource),
-		attribute.Bool("internal", handler.Internal))
-
-	if !handler.Match(protocol, accept) {
-		span.AddEvent("missmatch",
-			oteltrace.WithAttributes(
-				attribute.String("protocol", protocol),
-				attribute.String("accept", accept)))
-		log.Warnf("reuqet protocol/accept not match")
-	}
-
-	var args []reflect.Value
-	args, err = handler.BuildArgs(ctx, request.Header[micro.ContentType], request.QueryParams(), request.Body)
-	if err != nil {
-		return err
-	}
-
-	results := handler.Method.Func.Call(args)
-	if handler.Response == nil {
-		span.AddEvent("success")
-		return
-	}
-	if e := results[1].Interface(); e != nil {
-		var match bool
-		err, match = e.(error)
-		if !match {
-			err = fmt.Errorf("unknown handler call resulst")
-			span.RecordError(err)
+	if handler.Request == nil {
+		span.AddEvent("query.hook")
+		ctx, err = handler.Hook(ctx, query, body)
+		if err != nil {
+			return ctx, nil, err
 		}
-		return
+		return ctx, []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query}, nil
 	}
-	resp := results[0].Interface()
-	codec := encoding.GetCodec(request.Header[micro.Accept])
-	if codec == nil {
-		err = exc.InternalServerError("micro.handler",
-			"response codec '%s' not found", request.Header[micro.Accept])
-		return
+
+	span.AddEvent("body.protocol")
+	// 请求协议
+	_codec := encoding.GetCodec(protocol)
+	if _codec == nil {
+		err = exc.BadRequest("micro.server", "codec not found: '%s'", protocol)
+		return ctx, nil, err.(error)
 	}
-	var buff []byte
-	buff, err = codec.Marshal(resp)
+	// body使用jsonschema校验 TODO 非json无法校验,需要处理
+	if handler.BodyValidator != nil {
+		span.AddEvent("body.validate")
+		var result *gojsonschema.Result
+		result, err = handler.BodyValidator.Validate(gojsonschema.NewBytesLoader(body))
+		if err != nil {
+			log.Debugf(ctx, "validate request body error: %v", err)
+			err = exc.BadRequest("micro.server", "decode body failed")
+			return ctx, nil, err.(error)
+		}
+		if !result.Valid() {
+			log.Debug(ctx, "validate request body failed")
+			msg := fmt.Sprintf("validate request body failed")
+			for _, desc := range result.Errors() {
+				msg = fmt.Sprintf("%s %s", msg, desc)
+			}
+			err = exc.BadRequest("micro.server", msg)
+			return ctx, nil, err.(error)
+		}
+	}
+	// 按协议解析数据流
+	var arg reflect.Value
+	if handler.Request == utils.TypeOfBytes {
+		arg = reflect.Zero(handler.Request)
+	} else {
+		arg = reflect.New(handler.Request.Elem())
+	}
+	span.AddEvent("body.decode")
+	if err = _codec.Unmarshal(body, arg.Interface()); err != nil {
+		return ctx, nil, exc.BadRequest("micro.server", "codec unmarshal failed: %s", err.Error())
+	}
+
+	ctx, err = handler.Hook(ctx, query, body)
 	if err != nil {
-		return
+		return ctx, nil, err
 	}
-	response.Body = buff
+	return ctx, []reflect.Value{handler.Receiver, reflect.ValueOf(ctx), _query, arg}, nil
+}
+
+/*
+Match 判断请求头类型是否匹配
+*/
+func (handler *Handler) Match(request, response string) bool {
+	//return protocol == handler.Metadata["res"] && accept == handler.Metadata["req"]
+	return micro.MatchCodec(request, handler.Metadata["req"]) &&
+		micro.MatchCodec(response, handler.Metadata["res"])
+}
+
+/*
+UrlPath 获取api path
+*/
+func (handler *Handler) UrlPath() (resource, path, method string) {
+	path = "/restful/"
+	switch handler.Name {
+	case "Get":
+		method = http.MethodGet
+		resource = handler.Resource
+		path += fmt.Sprintf("%s/:id", handler.Resource)
+	case "List":
+		method = http.MethodGet
+		resource = handler.Collection
+		path += handler.Collection
+		return
+	case "Create":
+		method = http.MethodPost
+		resource = handler.Collection
+		path += handler.Collection
+		return
+	case "Update":
+		method = http.MethodPut
+		resource = handler.Resource
+		path += fmt.Sprintf("%s/:id", handler.Resource)
+		return
+	case "Patch":
+		method = http.MethodPatch
+		resource = handler.Collection
+		path += handler.Collection
+		return
+	case "Delete":
+		method = http.MethodDelete
+		resource = handler.Resource
+		path += fmt.Sprintf("%s/:id", handler.Resource)
+		return
+	default: // 非restful接口
+		resource = fmt.Sprintf("%s/%s", handler.Resource, handler.Name)
+		path = fmt.Sprintf("/%s", resource)
+		matches := curdPrefix.FindStringSubmatch(handler.Method.Name)
+		if matches == nil { // 这是一个网关接口
+			return
+		}
+		method = matches[1]
+	}
 	return
-}
-
-func (g *RPCServer) Stream(stream tp.Transport_StreamServer) error {
-	g.wg.Add(1)
-	defer g.wg.Done()
-	return status.New(codes.Unimplemented, "stream message not implemented").Err()
-}
-
-func (g *RPCServer) Call(ctx context.Context, msg *tp.Message) (*tp.Message, error) {
-	g.wg.Add(1)
-	defer g.wg.Done()
-	return g.handler(ctx, msg)
 }

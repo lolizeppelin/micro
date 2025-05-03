@@ -20,17 +20,7 @@ func init() { //监控退出信号关闭日志, 监控SIGUSR1 重新打开日志
 			if !ok {
 				break
 			}
-			for _, logger := range loggers {
-				logger.Reload()
-			}
+			handler.Reload()
 		}
 	}()
-}
-
-func Close() {
-	signal.Stop(c)
-	close(c)
-	for _, logger := range loggers {
-		logger.Close()
-	}
 }
