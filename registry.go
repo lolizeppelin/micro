@@ -8,7 +8,7 @@ type Registry interface {
 	GetService(service string) ([]*Service, error)
 	ListServices() ([]*Service, error)
 	Watch(service string) (Watcher, error)
-	String() string
+	Name() string
 }
 
 type Watcher interface {
@@ -23,11 +23,11 @@ type Result struct {
 }
 
 type Service struct {
-	Name      string            `json:"name"`
-	Version   int               `json:"version"` // 服务主版本号
-	Metadata  map[string]string `json:"metadata"`
-	Nodes     []*Node           `json:"nodes"`
-	Endpoints []*Endpoint       `json:"endpoints"`
+	Name      string               `json:"name"`
+	Version   int                  `json:"version"` // 服务主版本号
+	Metadata  map[string]string    `json:"metadata"`
+	Nodes     []*Node              `json:"nodes"`
+	Endpoints map[string]*Endpoint `json:"endpoints"`
 }
 
 type Node struct {

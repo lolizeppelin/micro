@@ -53,10 +53,10 @@ func (c *registrySelector) Select(service string, filters ...Filter) (Next, erro
 	return c.so.Strategy(services), nil
 }
 
-func (c *registrySelector) Mark(service string, node *micro.Node, err error) {
+func (c *registrySelector) Mark(string, *micro.Node, error) {
 }
 
-func (c *registrySelector) Reset(service string) {
+func (c *registrySelector) Reset(string) {
 }
 
 // Close stops the watcher and destroys the cache

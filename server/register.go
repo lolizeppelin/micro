@@ -17,7 +17,7 @@ func (g *RPCServer) Register(ctx context.Context) error {
 	service := g.service.registry
 
 	if !registered {
-		log.Infof(ctx, "Registry [%s] Registering node: %s", config.Registry.String(), service.Name)
+		log.Infof(ctx, "Registry [%s] Registering node: %s", config.Registry.Name(), service.Name)
 	}
 
 	var err error
@@ -35,7 +35,7 @@ func (g *RPCServer) Register(ctx context.Context) error {
 		break
 	}
 	if err != nil {
-		log.Errorf(ctx, "Registry [%s] Registering node: %s", config.Registry.String(), service.Name)
+		log.Errorf(ctx, "Registry [%s] Registering node: %s", config.Registry.Name(), service.Name)
 		return err
 	}
 

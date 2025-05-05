@@ -8,11 +8,18 @@ import (
 	"path/filepath"
 )
 
-func Setup(program string, logDir string, level slog.Level) error {
-	logger = logger.With("program", program)
+func Setup(service, program string, logDir string, level slog.Level) error {
+	attr := []any{"proc"}
+	if program == "" {
+		attr = append(attr, service)
+	} else {
+		attr = append(attr, fmt.Sprintf("%s-%s", service, program))
+	}
+	logger = logger.With(attr...)
 	if level <= slog.LevelDebug {
 		internal.IgnorePC = false
 	}
+	handler.attrs = argsToAttrSlice(attr)
 	handler.opts.Level = level
 	if logDir != "" {
 		path := filepath.Join(logDir, fmt.Sprintf("%s.log", program))

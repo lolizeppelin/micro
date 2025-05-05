@@ -3,12 +3,12 @@ package server
 import (
 	"github.com/lolizeppelin/micro"
 	"github.com/lolizeppelin/micro/broker"
+	"github.com/lolizeppelin/micro/utils"
 )
 
 type Service struct {
 	opts       *Options
 	services   map[string]map[string]*Handler
-	endpoints  []*micro.Endpoint
 	registry   *micro.Service
 	subscribed map[string]broker.Subscriber
 }
@@ -35,22 +35,29 @@ func newService(opts *Options) *Service {
 		Metadata: opts.Metadata,
 	}
 
-	//node.Metadata["broker"] = config.Broker.String()
-	//node.Metadata["registry"] = config.Registry.String()
+	node.Metadata["registry"] = opts.Registry.Name()
+	if opts.Broker != nil {
+		node.Metadata["broker"] = opts.Broker.Name()
+	}
 	//node.Metadata["server"] = g.String()
 	//node.Metadata["transport"] = g.String()
 	node.Metadata["protocol"] = "grpc"
 
+	emap, err := utils.SliceToMapByField[*micro.Endpoint, string](endpoints, "Name")
+	if err != nil {
+		panic("convert endpoint list to map failed")
+	}
+
 	return &Service{
-		opts:       opts,
-		services:   services,
-		endpoints:  endpoints,
+		opts:     opts,
+		services: services,
+		//endpoints:  endpoints,
 		subscribed: map[string]broker.Subscriber{},
 		registry: &micro.Service{
 			Name:      opts.Name,
 			Version:   opts.Version.Major,
 			Nodes:     []*micro.Node{node},
-			Endpoints: endpoints,
+			Endpoints: emap,
 			Metadata:  map[string]string{},
 		},
 	}

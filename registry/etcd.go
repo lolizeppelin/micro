@@ -93,11 +93,11 @@ func (e *etcdRegistry) registerNode(ctx context.Context, s *micro.Service, node 
 
 	if !ok {
 		// missing lease, check if the key exists
-		ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+		_ctx, cancel := context.WithTimeout(ctx, e.options.Timeout)
 		defer cancel()
 
 		// look for the existing key
-		rsp, err := e.client.Get(ctx, nodePath(s.Name, node.Id), clientV3.WithSerializable())
+		rsp, err := e.client.Get(_ctx, nodePath(s.Name, node.Id), clientV3.WithSerializable())
 		if err != nil {
 			return err
 		}
@@ -114,7 +114,8 @@ func (e *etcdRegistry) registerNode(ctx context.Context, s *micro.Service, node 
 				}
 
 				// create hash of service; uint64
-				h, err := hash.Hash(srv.Nodes[0], hash.FormatV2, nil)
+				var h uint64
+				h, err = hash.Hash(srv.Nodes[0], hash.FormatV2, nil)
 				if err != nil {
 					continue
 				}
@@ -135,7 +136,7 @@ func (e *etcdRegistry) registerNode(ctx context.Context, s *micro.Service, node 
 	// renew the lease if it exists
 	if leaseID > 0 {
 		log.Debugf(ctx, "Renewing existing lease for %s %d", s.Name, leaseID)
-		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
+		if _, err := e.client.KeepAliveOnce(ctx, leaseID); err != nil {
 			if !errors.Is(err, rpctypes.ErrLeaseNotFound) {
 				return err
 			}
@@ -340,6 +341,6 @@ func (e *etcdRegistry) Watch(service string) (micro.Watcher, error) {
 	return newEtcdWatcher(e, e.options.Timeout, service)
 }
 
-func (e *etcdRegistry) String() string {
+func (e *etcdRegistry) Name() string {
 	return "etcd"
 }

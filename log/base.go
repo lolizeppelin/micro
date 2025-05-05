@@ -62,6 +62,7 @@ func (f *file) Reload() error {
 }
 
 type multiHandlers struct {
+	attrs    []slog.Attr
 	opts     *slog.HandlerOptions
 	files    *utils.SyncMap[string, *file]
 	handlers map[string]slog.Handler
@@ -149,7 +150,7 @@ func (h *multiHandlers) AppendFile(path string, builder ...FileHandlerBuilder) e
 		hdr = slog.NewTextHandler(writer, h.opts)
 	}
 	h.files.Store(path, writer)
-	h.handlers[path] = hdr
+	h.handlers[path] = hdr.WithAttrs(h.attrs)
 	return nil
 }
 
@@ -164,5 +165,5 @@ func (h *multiHandlers) Reload() {
 
 // AppendHandler 添加非文件的handler
 func (h *multiHandlers) AppendHandler(name string, handler slog.Handler) {
-	h.handlers[name] = handler
+	h.handlers[name] = handler.WithAttrs(h.attrs)
 }

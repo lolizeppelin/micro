@@ -129,7 +129,7 @@ func isHandlerMethod(method reflect.Method) bool {
 
 /*
 ExtractComponent 解析组件
-返回的map是可以走网关的Handlers
+返回的map是rpcserver可用穿透的Handlers（可用网关代理）
 返回的列表是所有Handlers
 */
 func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handler) {
@@ -221,6 +221,11 @@ func ExtractComponent(component micro.Component) (map[string]*Handler, []*Handle
 	return methods, handlers
 }
 
+/*
+ExtractComponents 解析组件
+返回的map是rpcserver可用穿透的Handlers（可用网关代理）
+返回的列表是所有Handlers
+*/
 func ExtractComponents(components []micro.Component) (map[string]map[string]*Handler, []*Handler) {
 	services := make(map[string]map[string]*Handler)
 	var handlers []*Handler

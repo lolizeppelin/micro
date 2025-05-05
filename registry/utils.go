@@ -69,7 +69,8 @@ func CopyService(service *micro.Service) *micro.Service {
 	s.Nodes = nodes
 
 	// copy endpoints
-	eps := make([]*micro.Endpoint, len(service.Endpoints))
+	//eps := make([]*micro.Endpoint, len(service.Endpoints))
+	eps := make(map[string]*micro.Endpoint)
 	for j, ep := range service.Endpoints {
 		e := new(micro.Endpoint)
 		*e = *ep

@@ -53,29 +53,44 @@ func (r *rpcClient) next(ctx context.Context, request micro.Request, opts CallOp
 				if version != nil && version.Major != s.Version {
 					continue
 				}
-				found := false
 				// 服务endpoint匹配
-				for _, ep := range s.Endpoints {
-					if ep.Name == endpoint {
-						// 校验请求与返回协议
-						if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["req"]) ||
-							!micro.MatchCodec(protocols.Response, ep.Metadata["res"]) {
-							return nil, exc.BadRequest("micro.client.selector", "request or response type mismatch")
-						}
-						if ep.Internal && !opts.Internal { // 屏蔽内部rpc请求
-							return nil, exc.Forbidden("micro.client.selector", "disabled request")
-						}
-						pk := request.PrimaryKey() == ""
-						if (ep.PrimaryKey && !pk) || (pk && !ep.PrimaryKey) {
-							return nil, exc.BadRequest("micro.client.selector", "request path param error")
-						}
-						found = true
-						break
-					}
-				}
-				if !found {
+				ep, ok := s.Endpoints[endpoint]
+				if !ok {
 					return nil, micro.ErrSelectEndpointNotFound
 				}
+
+				if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["req"]) ||
+					!micro.MatchCodec(protocols.Response, ep.Metadata["res"]) {
+					return nil, exc.BadRequest("micro.client.selector", "request or response type mismatch")
+				}
+				if ep.Internal && !opts.Internal { // 屏蔽内部rpc请求
+					return nil, exc.Forbidden("micro.client.selector", "disabled request")
+				}
+				pk := request.PrimaryKey() == ""
+				if (ep.PrimaryKey && !pk) || (pk && !ep.PrimaryKey) {
+					return nil, exc.BadRequest("micro.client.selector", "request path param error")
+				}
+				//for _, ep := range s.Endpoints {
+				//	if ep.Name == endpoint {
+				//		// 校验请求与返回协议
+				//		if !micro.MatchCodec(protocols.Reqeust, ep.Metadata["req"]) ||
+				//			!micro.MatchCodec(protocols.Response, ep.Metadata["res"]) {
+				//			return nil, exc.BadRequest("micro.client.selector", "request or response type mismatch")
+				//		}
+				//		if ep.Internal && !opts.Internal { // 屏蔽内部rpc请求
+				//			return nil, exc.Forbidden("micro.client.selector", "disabled request")
+				//		}
+				//		pk := request.PrimaryKey() == ""
+				//		if (ep.PrimaryKey && !pk) || (pk && !ep.PrimaryKey) {
+				//			return nil, exc.BadRequest("micro.client.selector", "request path param error")
+				//		}
+				//		found = true
+				//		break
+				//	}
+				//}
+				//if !found {
+				//	return nil, micro.ErrSelectEndpointNotFound
+				//}
 				// 节点过滤
 				if opts.Node != "" {
 					service := &micro.Service{
