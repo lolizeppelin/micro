@@ -26,6 +26,7 @@ func LoadSlogMeterHandler() slog.Handler {
 
 }
 
+// SlogMeterHandler 全局error与warning计数器
 type SlogMeterHandler struct {
 	error   metric.Int64Counter
 	warning metric.Int64Counter
@@ -44,10 +45,10 @@ func (h *SlogMeterHandler) Handle(ctx context.Context, record slog.Record) error
 	return nil
 }
 
-func (h *SlogMeterHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *SlogMeterHandler) WithAttrs([]slog.Attr) slog.Handler {
 	return h
 }
 
-func (h *SlogMeterHandler) WithGroup(name string) slog.Handler {
+func (h *SlogMeterHandler) WithGroup(string) slog.Handler {
 	return h
 }
