@@ -14,11 +14,12 @@ func init() {
 	exports["collector"] = NewGRPCExport
 	exports["collector.grpc"] = NewGRPCExport
 	exports["collector.http"] = NewHTTPExport
+	exports["loki.http"] = NewHTTPExport
 }
 
 type LoggingBatch struct {
 	Timeout  int32 `json:"timeout,omitempty"`
-	Interval int32 `json:"size,omitempty"`
+	Interval int32 `json:"interval,omitempty"`
 }
 
 type LoggingConfig struct {
