@@ -8,8 +8,8 @@ import (
 	"log/slog"
 )
 
-func LoadSlogHandler(name string, provider *log.LoggerProvider) slog.Handler {
-	return otelslog.NewHandler(name, otelslog.WithLoggerProvider(provider),
+func LoadSlogHandler(provider *log.LoggerProvider) slog.Handler {
+	return otelslog.NewHandler(ScopeName, otelslog.WithLoggerProvider(provider),
 		otelslog.WithVersion(_version.Version(true)))
 }
 

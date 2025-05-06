@@ -15,17 +15,20 @@ func Setup(service, program string, logDir string, level slog.Level) error {
 	} else {
 		attr = append(attr, fmt.Sprintf("%s-%s", service, program))
 	}
-	logger = logger.With(attr...)
 	if level <= slog.LevelDebug {
 		internal.IgnorePC = false
+		multi.opts.AddSource = false
 	}
-	handler.attrs = argsToAttrSlice(attr)
-	handler.opts.Level = level
+	multi.stdout = multi.stdout.With(attr...)
+	multi.attrs = argsToAttrSlice(attr)
+	multi.opts.Level = level
 	if logDir != "" {
 		path := filepath.Join(logDir, fmt.Sprintf("%s.log", program))
-		if err := handler.AppendFile(path); err != nil {
+		if err := multi.AppendFile(path); err != nil {
 			return err
 		}
+	} else {
+		multi.handlers["stdout"] = multi.stdout.handler
 	}
 	return nil
 }
@@ -91,15 +94,15 @@ func Fatalf(ctx context.Context, format string, args ...any) {
 }
 
 func IsDebugEnabled() bool {
-	return slog.LevelDebug <= handler.Level()
+	return slog.LevelDebug <= multi.Level()
 }
 
 // AppendHandler 非线程安全, 初始化时调用后不需要在调用
 func AppendHandler(name string, h slog.Handler) {
-	handler.AppendHandler(name, h)
+	multi.AppendHandler(name, h)
 }
 
 // AppendFileHandler 非线程安全, 初始化时调用后不需要在调用
 func AppendFileHandler(name string, builder ...FileHandlerBuilder) error {
-	return handler.AppendFile(name, builder...)
+	return multi.AppendFile(name, builder...)
 }

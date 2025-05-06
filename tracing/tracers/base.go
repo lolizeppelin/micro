@@ -24,6 +24,7 @@ type TracerBatch struct {
 
 type TracerConfig struct {
 	Driver      string                 `json:"driver" description:"Tracer驱动"` // e.g jaeger
+	Disabled    bool                   `json:"disabled,omitempty" description:"是否禁用"`
 	Endpoint    string                 `json:"endpoint" description:"接口地址"`
 	Batch       TracerBatch            `json:"batch" description:"批量上传配置"`
 	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`

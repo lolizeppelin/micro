@@ -17,12 +17,13 @@ func init() {
 }
 
 type MetricBatch struct {
-	Timeout  int32 `json:"timeout,omitempty"` // 测试环境填1方便调试
-	Interval int32 `json:"size,omitempty"`    // 测试环境填1方便调试
+	Timeout  int32 `json:"timeout,omitempty"`  // 测试环境填1方便调试
+	Interval int32 `json:"interval,omitempty"` // 测试环境填1方便调试
 }
 
 type MetricConfig struct {
 	Driver      string                 `json:"driver" description:"Metric驱动"` // e.g prometheus/victoriametrics/greptime
+	Disabled    bool                   `json:"disabled,omitempty" description:"是否禁用"`
 	Endpoint    string                 `json:"endpoint" description:"Metric接口地址uri"`
 	Batch       MetricBatch            `json:"batch" description:"批量上传配置"`
 	Auth        map[string]string      `json:"auth,omitempty" description:"认证"`

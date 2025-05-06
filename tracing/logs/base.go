@@ -14,7 +14,7 @@ func init() {
 	exports["collector"] = NewGRPCExport
 	exports["collector.grpc"] = NewGRPCExport
 	exports["collector.http"] = NewHTTPExport
-	exports["loki.http"] = NewHTTPExport
+	//exports["loki.http"] = NewHTTPExport
 }
 
 type LoggingBatch struct {

@@ -265,7 +265,7 @@ type ConsoleOptions struct {
 
 	NoColors bool
 
-	Level slog.Leveler
+	Opts *slog.HandlerOptions
 }
 
 func WithTimeFormat(format string) ConsoleOption {
@@ -274,15 +274,15 @@ func WithTimeFormat(format string) ConsoleOption {
 	}
 }
 
-func WitOutColor(disabled bool) ConsoleOption {
+func WithOutColor(disabled bool) ConsoleOption {
 	return func(o *ConsoleOptions) {
 		o.NoColors = disabled
 	}
 }
 
-func WitHandlerLevel(level slog.Level) ConsoleOption {
+func WithHandlerOption(opts *slog.HandlerOptions) ConsoleOption {
 	return func(o *ConsoleOptions) {
-		o.Level = level
+		o.Opts = opts
 	}
 }
 
@@ -290,7 +290,6 @@ func NewConsoleHandler(w io.Writer, opts ...ConsoleOption) *ConsoleHandler {
 
 	options := &ConsoleOptions{
 		TimestampFormat: utils.TimestampFormat,
-		Level:           slog.LevelInfo,
 		NoColors:        true,
 	}
 
@@ -317,11 +316,10 @@ type ConsoleHandler struct {
 }
 
 func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
-	minLevel := slog.LevelInfo
-	if h.options.Level != nil {
-		minLevel = h.options.Level.Level()
+	if h.options.Opts != nil {
+		return level >= h.options.Opts.Level.Level()
 	}
-	return level >= minLevel
+	return level >= slog.LevelInfo
 }
 
 func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {

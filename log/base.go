@@ -12,26 +12,24 @@ import (
 )
 
 var (
-	handler *multiHandlers
-	logger  *Logger
+	multi  *multiHandlers
+	logger *Logger
 )
 
 func init() {
 	opts := new(slog.HandlerOptions)
+	opts.AddSource = true
 	opts.Level = slog.LevelInfo
-	handler = &multiHandlers{
+	multi = &multiHandlers{
 		opts:     opts,
 		files:    utils.NewSyncMap[string, *file](),
 		handlers: map[string]slog.Handler{},
 		stdout: NewSlog(NewConsoleHandler(os.Stdout,
-			WitOutColor(false),
-			WitHandlerLevel(opts.Level.Level()))),
-		//stdout: NewSlog(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		//	AddSource: true,
-		//})),
+			WithOutColor(false),
+			WithHandlerOption(opts))),
 	}
 
-	logger = NewSlog(handler)
+	logger = NewSlog(multi)
 }
 
 type FileHandlerBuilder func(io.Writer, *slog.HandlerOptions) slog.Handler
@@ -79,7 +77,7 @@ func (h *multiHandlers) Enabled(_ context.Context, level slog.Level) bool {
 
 func (h *multiHandlers) Handle(ctx context.Context, record slog.Record) error {
 	if len(h.handlers) == 0 {
-		return h.stdout.Handler().Handle(ctx, record)
+		return h.stdout.handler.Handle(ctx, record)
 	}
 	for name, hdr := range h.handlers {
 		if !hdr.Enabled(ctx, record.Level) {
@@ -94,6 +92,7 @@ func (h *multiHandlers) Handle(ctx context.Context, record slog.Record) error {
 
 func (h *multiHandlers) WithAttrs(attrs []slog.Attr) slog.Handler {
 	copied := &multiHandlers{
+		attrs:    h.attrs,
 		opts:     h.opts,
 		handlers: utils.CopyMap(h.handlers),
 		stdout:   NewSlog(h.stdout.Handler().WithAttrs(attrs)),
@@ -110,6 +109,7 @@ func (h *multiHandlers) WithAttrs(attrs []slog.Attr) slog.Handler {
 func (h *multiHandlers) WithGroup(name string) slog.Handler {
 
 	copied := &multiHandlers{
+		attrs:    h.attrs,
 		opts:     h.opts,
 		handlers: utils.CopyMap(h.handlers),
 		stdout:   h.stdout.WithGroup(name),

@@ -2,8 +2,11 @@ package tracers
 
 import (
 	"context"
+	"fmt"
+	"github.com/lolizeppelin/micro/utils"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"net/url"
 	"time"
 )
 
@@ -16,11 +19,17 @@ func NewHTTPExport(ctx context.Context, conf TracerConfig) (trace.SpanExporter, 
 	if err != nil {
 		return nil, err
 	}
-	address := conf.Endpoint
+	endpoint := conf.Endpoint
+	uri, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse jaeper endpoint failed")
+	}
+	if !utils.IncludeInSlice([]string{"http", "https"}, uri.Scheme) {
+		return nil, fmt.Errorf("OTEL jaeper endpoint scheme %s not supported", uri.Scheme)
+	}
 	return otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(address),
+		otlptracehttp.WithEndpoint(uri.Host),
 		otlptracehttp.WithTLSClientConfig(tls),
-		//otlptracehttp.WithInsecure(),
 		otlptracehttp.WithHeaders(conf.Auth),
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{ // 重试机制
 			Enabled:         true,
