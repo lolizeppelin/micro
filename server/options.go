@@ -14,7 +14,7 @@ import (
 )
 
 type Options struct {
-	Id            uint32
+	Id            uint64
 	Name          string
 	MaxMsgSize    int
 	Version       *micro.Version // 当前服务版本号
@@ -41,7 +41,7 @@ func WithServerId(id uint64) Option {
 		panic("server id over size")
 	}
 	return func(o *Options) {
-		o.Id = uint32(id)
+		o.Id = id
 	}
 }
 
@@ -161,7 +161,6 @@ func WithBrokerOpts(options []broker.SubscribeOption) Option {
 
 func NewOptions(name string) *Options {
 	return &Options{
-		Id:            1,
 		Name:          name,
 		MaxMsgSize:    DefaultMaxMsgSize,
 		Interval:      time.Second * 30,
